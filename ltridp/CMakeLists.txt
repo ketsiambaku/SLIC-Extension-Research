@@ -16,6 +16,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 # Add subdirectories
 add_subdirectory(preprocessing)
 add_subdirectory(feature)
+add_subdirectory(segmentation)
 
 # Enable testing (will be used if GTest is available in tests/)
 enable_testing()
