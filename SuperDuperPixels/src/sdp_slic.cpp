@@ -1008,7 +1008,7 @@ void SuperpixelSLICImpl::addColorsToAverages
 	const int y
 )
 {
-	// Get average colors and color histograms for each superpixel
+	// Get average colors for each superpixel
 	for (int color_channel = 0; color_channel < m_nr_channels; color_channel += 1)
 	{
 		switch ( m_chvec[0].depth() )
@@ -1148,12 +1148,14 @@ void SuperpixelSLICImpl::groupSuperpixels
 	{
 		vector<float> average_colors(m_nr_channels);
 		this->extractAverageColors(superpixel_average_colors, average_colors, superpixel);
+		// Loop through each neighbor of this superpixel
 		for (int neighbor: superpixel_neighbors[superpixel])
 		{
 			// Don't try to group together superpixels that are already grouped together
 			if (superduperpixel_pointers[neighbor] == superduperpixel_pointers[superpixel] && superduperpixel_pointers[neighbor] != NULL)
 			continue;
 
+			// Get color distance to neighbor
 			float neighbor_distance = this->getColorDistance
 			(
 				superduperpixels,
@@ -1164,6 +1166,7 @@ void SuperpixelSLICImpl::groupSuperpixels
 				neighbor
 			);
 
+			// If the distance is close enough, group them into a super-duper-pixel
 			if (neighbor_distance < max_distance)
 			{
 				this->combineIntoSuperDuperPixel
@@ -1215,6 +1218,7 @@ void SuperpixelSLICImpl::groupSuperpixels
 			if (superduperpixel_pointers[neighbor] == superduperpixel_pointers[superpixel] && superduperpixel_pointers[neighbor] != NULL)
 			continue;
 
+			// Get color distance to neighbor
 			float neighbor_distance = this->getColorDistance
 			(
 				num_buckets,
@@ -1226,6 +1230,7 @@ void SuperpixelSLICImpl::groupSuperpixels
 				neighbor
 			);
 
+			// If the distance is close enough, group them into a super-duper-pixel
 			if (neighbor_distance < max_distance)
 			{
 				this->combineIntoSuperDuperPixel
@@ -1262,6 +1267,7 @@ float SuperpixelSLICImpl::getColorDistance
 )
 {
 	// TODO: Fix this
+	// If the neighbor is already in a super-duper-pixel, use the distance to the whole super-duper-pixel it's in instead of just the neighbor
 	// if (superduperpixel_pointers[neighbor] != NULL)
 	// 	return (*superduperpixel_pointers[neighbor]).distance_from(average_colors);
 
@@ -1293,6 +1299,7 @@ float SuperpixelSLICImpl::getColorDistance
 )
 {
 	// TODO: Fix this
+	// If the neighbor is already in a super-duper-pixel, use the distance to the whole super-duper-pixel it's in instead of just the neighbor
 	// if (superduperpixel_pointers[neighbor] != NULL)
 	// 	return (*superduperpixel_pointers[neighbor]).distance_from(color_histogram);
 
@@ -1356,30 +1363,39 @@ void SuperpixelSLICImpl::combineIntoSuperDuperPixel
 	const int neighbor
 )
 {
+	// If the neighbor is not already in a super-duper-pixel
 	if (superduperpixel_pointers[neighbor] == NULL)
 	{
+		// If neither superpixels are in a super-duper-pixel
 		if (superduperpixel_pointers[superpixel] == NULL)
 		{
+			// Create a new super-duper-pixel with the current superpixel
 			superduperpixels.push_back(SuperDuperPixel(superpixel, average_colors, superpixel_population[superpixel]));
 			superduperpixel_pointers[superpixel] = &superduperpixels.back();
 			superduperpixel_iterators[superpixel] = --superduperpixels.end();
 		}
+		// Add the neighbor to the super-duper-pixel
 		vector<float> neighbor_average_colors(m_nr_channels);
 		this->extractAverageColors(superpixel_average_colors, neighbor_average_colors, neighbor);
 		superduperpixel_pointers[superpixel]->add_superpixel(neighbor, neighbor_average_colors, superpixel_population[neighbor]);
 		superduperpixel_pointers[neighbor] = superduperpixel_pointers[superpixel];
 		superduperpixel_iterators[neighbor] = superduperpixel_iterators[superpixel];
 	}
+	// If the neighbor is already in a superpixel
 	else
 	{
+		// If this superpixel is not in a super-duper-pixel yet
 		if (superduperpixel_pointers[superpixel] == NULL)
 		{
+			// Add it to the neighbor's super-duper-pixel
 			superduperpixel_pointers[neighbor]->add_superpixel(superpixel, average_colors, superpixel_population[superpixel]);
 			superduperpixel_pointers[superpixel] = superduperpixel_pointers[neighbor];
 			superduperpixel_iterators[superpixel] = superduperpixel_iterators[neighbor];
 		}
+		// If this superpixel is also already in a super-duper-pixel
 		else
 		{
+			// Merge the superpixels (move all the superpixels from A to B and delete A)
 			std::list<SuperDuperPixel>::iterator merging_superduperpixel = superduperpixel_iterators[neighbor];
 			(*superduperpixel_pointers[superpixel]) += superduperpixel_pointers[neighbor];
 			for (int connected_neighbor : superduperpixel_pointers[neighbor]->get_superpixels())
@@ -1405,30 +1421,38 @@ void SuperpixelSLICImpl::combineIntoSuperDuperPixel
 	const int neighbor
 )
 {
+	// If the neighbor is not already in a super-duper-pixel
 	if (superduperpixel_pointers[neighbor] == NULL)
 	{
+		// If neither superpixels are in a super-duper-pixel
 		if (superduperpixel_pointers[superpixel] == NULL)
 		{
+			// Create a new super-duper-pixel with the current superpixel
 			superduperpixels.push_back(SuperDuperPixel(superpixel, color_histogram, superpixel_population[superpixel]));
 			superduperpixel_pointers[superpixel] = &superduperpixels.back();
 			superduperpixel_iterators[superpixel] = --superduperpixels.end();
 		}
+		// Add the neighbor to the super-duper-pixel
 		vector< vector<float>> neighbor_color_histogram(m_nr_channels);
 		this->extractColorHistogram(num_buckets, superpixel_color_histograms, neighbor_color_histogram, neighbor);
 		superduperpixel_pointers[superpixel]->add_superpixel(neighbor, neighbor_color_histogram, superpixel_population[neighbor]);
 		superduperpixel_pointers[neighbor] = superduperpixel_pointers[superpixel];
 		superduperpixel_iterators[neighbor] = superduperpixel_iterators[superpixel];
 	}
+	// If the neighbor is already in a superpixel
 	else
 	{
+		// If this superpixel is not in a super-duper-pixel yet
 		if (superduperpixel_pointers[superpixel] == NULL)
 		{
 			superduperpixel_pointers[neighbor]->add_superpixel(superpixel, color_histogram, superpixel_population[superpixel]);
 			superduperpixel_pointers[superpixel] = superduperpixel_pointers[neighbor];
 			superduperpixel_iterators[superpixel] = superduperpixel_iterators[neighbor];
 		}
+		// If this superpixel is also already in a super-duper-pixel
 		else
 		{
+			// Merge the superpixels (move all the superpixels from A to B and delete A)
 			std::list<SuperDuperPixel>::iterator merging_superduperpixel = superduperpixel_iterators[neighbor];
 			(*superduperpixel_pointers[superpixel]) += superduperpixel_pointers[neighbor];
 			for (int connected_neighbor : superduperpixel_pointers[neighbor]->get_superpixels())
@@ -1447,6 +1471,7 @@ int SuperpixelSLICImpl::indexSuperduperpixels
 	vector<int>& superduperpixel_indexes
 )
 {
+	// Iterate through every super-duper-pixel and give them indexes starting at 0
 	superduperpixel_indexes = vector<int>(m_numlabels, -1);
 	int superduperpixel_count = 0;
 	for (SuperDuperPixel sdp : superduperpixels)
@@ -1462,7 +1487,7 @@ int SuperpixelSLICImpl::indexSuperduperpixels
 
 void SuperpixelSLICImpl::assignSuperduperpixels(const vector<int>& superduperpixel_indexes)
 {
-	// Change m_klabels so pixels use superduperpixels instead of their old superpixels
+	// Change m_klabels so pixels use superduperpixel indexes instead of their old superpixel labels
 	for (int y = 0; y < m_height; y += 1)
 	for (int x = 0; x < m_width; x += 1)
 	{
