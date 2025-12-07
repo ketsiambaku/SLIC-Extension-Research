@@ -1227,6 +1227,7 @@ void SuperpixelSLICImpl::groupSuperpixels
 		
 		for (int neighbor: superpixel_neighbors[superpixel])
 		{
+			std::cout << 1 << std::endl;
 			// Don't try to group together superpixels that are already grouped together
 			if (superduperpixel_pointers[neighbor] == superduperpixel_pointers[superpixel] && superduperpixel_pointers[neighbor] != NULL)
 			continue;
@@ -1282,8 +1283,8 @@ float SuperpixelSLICImpl::getColorDistance
 {
 	// TODO: Fix this
 	// If the neighbor is already in a super-duper-pixel, use the distance to the whole super-duper-pixel it's in instead of just the neighbor
-	// if (superduperpixel_pointers[neighbor] != NULL)
-	// 	return (*superduperpixel_pointers[neighbor]).distance_from(average_colors);
+	if (superduperpixel_pointers[neighbor] != NULL)
+		return (*superduperpixel_pointers[neighbor]).distance_from(average_colors);
 
 	float neighbor_distance = 0;
 	for (int color_channel = 0; color_channel < m_nr_channels; color_channel += 1)
@@ -1315,8 +1316,8 @@ float SuperpixelSLICImpl::getColorDistance
 {
 	// TODO: Fix this
 	// If the neighbor is already in a super-duper-pixel, use the distance to the whole super-duper-pixel it's in instead of just the neighbor
-	// if (superduperpixel_pointers[neighbor] != NULL)
-	// 	return (*superduperpixel_pointers[neighbor]).distance_from(color_histogram);
+	if (superduperpixel_pointers[neighbor] != NULL)
+		return (*superduperpixel_pointers[neighbor]).distance_from(color_histogram);
 
 	float neighbor_distance = 0;
 	for (int color_channel = 0; color_channel < m_nr_channels; color_channel += 1)
@@ -1411,7 +1412,8 @@ void SuperpixelSLICImpl::combineIntoSuperDuperPixel
 			superduperpixel_iterators[superpixel] = superduperpixel_iterators[neighbor];
 		}
 		// If this superpixel is also already in a super-duper-pixel
-		else
+		// And they're not in the same one
+		else if (superduperpixel_pointers[superpixel] != superduperpixel_pointers[neighbor])
 		{
 			// Merge the superpixels (move all the superpixels from A to B and delete A)
 			std::list<SuperDuperPixel>::iterator merging_superduperpixel = superduperpixel_iterators[neighbor];
@@ -1469,7 +1471,8 @@ void SuperpixelSLICImpl::combineIntoSuperDuperPixel
 			superduperpixel_iterators[superpixel] = superduperpixel_iterators[neighbor];
 		}
 		// If this superpixel is also already in a super-duper-pixel
-		else
+		// And they're not in the same one
+		else if (superduperpixel_pointers[superpixel] != superduperpixel_pointers[neighbor])
 		{
 			// Merge the superpixels (move all the superpixels from A to B and delete A)
 			std::list<SuperDuperPixel>::iterator merging_superduperpixel = superduperpixel_iterators[neighbor];

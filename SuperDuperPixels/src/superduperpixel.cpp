@@ -1,5 +1,6 @@
 #include "SuperDuperPixel.hpp"
 #include <assert.h>
+#include <iostream>
 
 SuperDuperPixel::SuperDuperPixel(int superpixel, std::vector<float> average, int pixel_count)
 {
@@ -41,12 +42,12 @@ float SuperDuperPixel::distance_from(const std::vector<float>& average)
 
 float SuperDuperPixel::distance_from(const std::vector< std::vector<float> >& histogram)
 {
-	assert(this->histogram.size() == histogram->size());
+	assert(this->histogram.size() == histogram.size());
 	float dist = 0;
 	for (int color_channel = 0; color_channel < this->histogram.size(); color_channel += 1)
 	{
 		assert(this->histogram[color_channel].size() == histogram[color_channel].size());
-		for (int bucket = 0; bucket < this->histogram[color_channel].size(); color_channel += 1)
+		for (int bucket = 0; bucket < this->histogram[color_channel].size(); bucket += 1)
 		{
 			float diff = this->histogram[color_channel][bucket] - histogram[color_channel][bucket];
 			// OpenCV SLIC algorithm square diff before adding it to dist.
