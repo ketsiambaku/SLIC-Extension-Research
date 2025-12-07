@@ -1227,7 +1227,6 @@ void SuperpixelSLICImpl::groupSuperpixels
 		
 		for (int neighbor: superpixel_neighbors[superpixel])
 		{
-			std::cout << 1 << std::endl;
 			// Don't try to group together superpixels that are already grouped together
 			if (superduperpixel_pointers[neighbor] == superduperpixel_pointers[superpixel] && superduperpixel_pointers[neighbor] != NULL)
 			continue;
