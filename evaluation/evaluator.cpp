@@ -10,7 +10,7 @@
 #include <opencv2/imgproc.hpp>
 #include <unordered_map>
 
-double SuperpixelEvaluator::computeUnderSegmentationError(const cv::Mat& superpixelLabels, const cv::Mat& groundTruthLabels, double overlapFractionThreshold = 0.05) {
+double SuperpixelEvaluator::computeUnderSegmentationError( const cv::Mat& superpixelLabels, const cv::Mat& groundTruthLabels, double overlapFractionThreshold) {
     CV_Assert(superpixelLabels.size() == groundTruthLabels.size());
     CV_Assert(superpixelLabels.type() == CV_32S &&
               groundTruthLabels.type() == CV_32S);
@@ -112,8 +112,7 @@ cv::Mat SuperpixelEvaluator::computeLabelBoundaryMask(const cv::Mat& labelImage)
     return boundaryMask;
 }
 
-double SuperpixelEvaluator::computeBoundaryRecall(const cv::Mat& superpixelLabelImage, const cv::Mat& groundTruthLabelImage, int boundaryToleranceInPixels = 2)
-{
+double SuperpixelEvaluator::computeBoundaryRecall(const cv::Mat& superpixelLabelImage, const cv::Mat& groundTruthLabelImage, int boundaryToleranceInPixels) {
     CV_Assert(superpixelLabelImage.size() == groundTruthLabelImage.size());
     CV_Assert(superpixelLabelImage.type() == CV_32S);
     CV_Assert(groundTruthLabelImage.type() == CV_32S);
