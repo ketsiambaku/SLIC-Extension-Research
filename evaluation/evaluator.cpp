@@ -10,7 +10,7 @@
 #include <opencv2/imgproc.hpp>
 #include <unordered_map>
 
-double SuperpixelEvaluator::computeUnderSegmentationError( const cv::Mat& superpixelLabels, const cv::Mat& groundTruthLabels, double overlapFractionThreshold) {
+double SuperpixelEvaluator::computeUnderSegmentationError(const cv::Mat& superpixelLabels, const cv::Mat& groundTruthLabels, double overlapFractionThreshold) {
     CV_Assert(superpixelLabels.size() == groundTruthLabels.size());
     CV_Assert(superpixelLabels.type() == CV_32S &&
               groundTruthLabels.type() == CV_32S);
