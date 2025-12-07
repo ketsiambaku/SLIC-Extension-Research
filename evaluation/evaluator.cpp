@@ -24,7 +24,7 @@ double SuperpixelEvaluator::computeUnderSegmentationError( const cv::Mat& superp
     std::unordered_map<int, int> superpixelSizes;
     std::unordered_map<int, std::unordered_map<int, int>> gtToSuperpixelOverlap;
 
-    for (int row = 0; row < numRows; row++) {
+    for (int row = 0; row < numRows; ++row) {
         const int* spRow = superpixelLabels.ptr<int>(row);
         const int* gtRow = groundTruthLabels.ptr<int>(row);
 
@@ -97,7 +97,7 @@ cv::Mat SuperpixelEvaluator::computeLabelBoundaryMask(const cv::Mat& labelImage)
                 }
 
                 // Different label = boundary
-                if (labelImage.at<int>(neighborRow, neighborCol) != currentLabel) {
+                if (labelImage.ptr<int>(neighborRow)[neighborCol] != currentLabel) {
                     pixelIsBoundary = true;
                     break;
                 }
