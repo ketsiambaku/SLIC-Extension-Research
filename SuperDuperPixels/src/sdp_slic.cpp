@@ -805,6 +805,7 @@ void SuperpixelSLICImpl::duperizeWithAverage(const float max_distance)
 	// The number of pixels in each superpixel
 	vector<int> superpixel_population;
 
+	// Find which superpixels are neighbors and get the average color of each superpixel
 	this->findSuperpixelNeighborsAndAverages(superpixel_neighbors, superpixel_average_colors, superpixel_population);
 
 	// Keep track of super-duper-pixels
@@ -815,6 +816,7 @@ void SuperpixelSLICImpl::duperizeWithAverage(const float max_distance)
 	vector<SuperDuperPixel*> superduperpixel_pointers;
 	vector<std::list<SuperDuperPixel>::iterator> superduperpixel_iterators;
 
+	// Group neighboring superpixels into super-duper-pixels if they're similar enough in color
 	this->groupSuperpixels
 	(
 		max_distance,
@@ -829,10 +831,11 @@ void SuperpixelSLICImpl::duperizeWithAverage(const float max_distance)
 	// Stores which super-duper-pixel each superpixel belong to
 	// super-duper-pixel value of -1 means it doesn't belong to a superduperpixel yet
 	vector<int> superduperpixel_indexes(m_numlabels, -1);
+	// Get indexes for each new super-duper-pixel
 	int superduperpixel_count = this->indexSuperduperpixels(superduperpixels, superduperpixel_indexes);
-
+	// Assign the new super-duper-pixel indexes to the pixels that belong to them
 	this->assignSuperduperpixels(superduperpixel_indexes);
-
+	// Change the number of labels since there are (most likely) less now
 	m_numlabels = superduperpixel_count;
 }
 
@@ -856,6 +859,7 @@ void SuperpixelSLICImpl::duperizeWithHistogram(const int num_buckets[], const fl
 	// Third dimension is each superpixel
 	vector< vector< vector<float> >> superpixel_color_histograms;
 
+	// Find which superpixels are neighbors and get the color histogram of each superpixel
 	this->findSuperpixelNeighborsAndHistograms
 	(
 		num_buckets,
@@ -872,6 +876,7 @@ void SuperpixelSLICImpl::duperizeWithHistogram(const int num_buckets[], const fl
 	vector<SuperDuperPixel*> superduperpixel_pointers;
 	vector<std::list<SuperDuperPixel>::iterator> superduperpixel_iterators;
 
+	// Group neighboring superpixels into super-duper-pixels if they're similar enough in color
 	this->groupSuperpixels
 	(
 		num_buckets,
@@ -887,13 +892,15 @@ void SuperpixelSLICImpl::duperizeWithHistogram(const int num_buckets[], const fl
 	// Stores which super-duper-pixel each superpixel belong to
 	// super-duper-pixel value of -1 means it doesn't belong to a superduperpixel yet
 	vector<int> superduperpixel_indexes(m_numlabels, -1);
+	// Get indexes for each new super-duper-pixel
 	int superduperpixel_count = this->indexSuperduperpixels(superduperpixels, superduperpixel_indexes);
-
+	// Assign the new super-duper-pixel indexes to the pixels that belong to them
 	this->assignSuperduperpixels(superduperpixel_indexes);
-
+	// Change the number of labels since there are (most likely) less now
 	m_numlabels = superduperpixel_count;
 }
 
+// Finds each superpixel's neighboring superpixels and the average color of each superpixel
 void SuperpixelSLICImpl::findSuperpixelNeighborsAndAverages
 (
 	vector< set<int> >& superpixel_neighbors,
@@ -930,6 +937,7 @@ void SuperpixelSLICImpl::findSuperpixelNeighborsAndAverages
 	}
 }
 
+// Finds each superpixel's neighboring superpixels and the normalized (between 0 and 1) color histogram of each superpixel
 void SuperpixelSLICImpl::findSuperpixelNeighborsAndHistograms
 (
 	const int num_buckets[],
@@ -974,6 +982,7 @@ void SuperpixelSLICImpl::findSuperpixelNeighborsAndHistograms
 	}
 }
 
+// Links superpixels to each neighboring superpixel above and to the left of it
 void SuperpixelSLICImpl::linkNeighborSuperpixels
 (
 	vector< set<int> >& superpixel_neighbors,
@@ -1000,6 +1009,7 @@ void SuperpixelSLICImpl::linkNeighborSuperpixels
 	}
 }
 
+// Adds a specific pixel's color to its superpixel's average color
 void SuperpixelSLICImpl::addColorsToAverages
 (
 	vector< vector<float> >& superpixel_average_colors,
@@ -1048,6 +1058,7 @@ void SuperpixelSLICImpl::addColorsToAverages
 	}
 }
 
+// Adds a specific pixel's color to its superpixel's color histogram
 void SuperpixelSLICImpl::addColorsToHistograms
 (
 	const int num_buckets[],
@@ -1129,6 +1140,7 @@ void SuperpixelSLICImpl::addColorsToHistograms
 	}
 }
 
+// Groups superpixels into super-duper-pixels based on their average colors
 void SuperpixelSLICImpl::groupSuperpixels
 (
 	const float max_distance,
@@ -1191,6 +1203,7 @@ void SuperpixelSLICImpl::groupSuperpixels
 	}
 }
 
+// Groups superpixels into super-duper-pixels based on their color histograms
 void SuperpixelSLICImpl::groupSuperpixels
 (
 	const int num_buckets[],
@@ -1256,6 +1269,7 @@ void SuperpixelSLICImpl::groupSuperpixels
 	}
 }
 
+// Gets the color distance between 2 superpixels' average colors
 float SuperpixelSLICImpl::getColorDistance
 (
 	const std::list<SuperDuperPixel>& superduperpixels,
@@ -1287,6 +1301,7 @@ float SuperpixelSLICImpl::getColorDistance
 	return neighbor_distance;
 }
 
+// Gets the color distance between 2 superpixels' color histograms
 float SuperpixelSLICImpl::getColorDistance
 (
 	const int num_buckets[],
@@ -1320,6 +1335,7 @@ float SuperpixelSLICImpl::getColorDistance
 	return neighbor_distance;
 }
 
+// Gets a vector of the average colors for a superpixel
 void SuperpixelSLICImpl::extractAverageColors
 (
 	const vector< vector<float> >& superpixel_average_colors,
@@ -1333,6 +1349,7 @@ void SuperpixelSLICImpl::extractAverageColors
 	}
 }
 
+// Gets a vector of the color histogram for a superpixel
 void SuperpixelSLICImpl::extractColorHistogram
 (
 	const int num_buckets[],
@@ -1351,6 +1368,7 @@ void SuperpixelSLICImpl::extractColorHistogram
 	}
 }
 
+// Combines 2 superpixels into a super-duper-pixel using their average colors
 void SuperpixelSLICImpl::combineIntoSuperDuperPixel
 (
 	std::list<SuperDuperPixel>& superduperpixels,
@@ -1408,6 +1426,7 @@ void SuperpixelSLICImpl::combineIntoSuperDuperPixel
 	}
 }
 
+// Combines 2 superpixels into a super-duper-pixel using their color histograms
 void SuperpixelSLICImpl::combineIntoSuperDuperPixel
 (
 	const int num_buckets[],
@@ -1465,6 +1484,7 @@ void SuperpixelSLICImpl::combineIntoSuperDuperPixel
 	}
 }
 
+// Gives super-duper-pixels indexes to assign to pixels as labels for what superpixel they're in
 int SuperpixelSLICImpl::indexSuperduperpixels
 (
 	const std::list<SuperDuperPixel>& superduperpixels,
@@ -1485,6 +1505,7 @@ int SuperpixelSLICImpl::indexSuperduperpixels
 	return superduperpixel_count;
 }
 
+// Assigns new super-duper-pixel indexes to pixels in the image as labels for what superpixel they're in
 void SuperpixelSLICImpl::assignSuperduperpixels(const vector<int>& superduperpixel_indexes)
 {
 	// Change m_klabels so pixels use superduperpixel indexes instead of their old superpixel labels

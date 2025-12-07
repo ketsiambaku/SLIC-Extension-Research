@@ -148,8 +148,10 @@ public:
 
 	/** @brief Combines adjacent superpixels into super-duper-pixels if they're similar enough in color.
 	
-	Uses distances between (normalized) color histograms of superpixels to determine if they're similar
-	enough in color.
+	Uses distances between color histograms of superpixels to determine if they're similar
+	enough in color. Histograms are normalized to be between 0 and 1 so they act as percentages rather
+	than raw pixel counts. This prevents large and small superpixels from having histograms that are too
+	different from each other.
 
     @param num_buckets The number of histogram buckets to use for each color channel
 	(RGB, HSV, LAB, etc.).
