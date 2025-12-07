@@ -21,7 +21,7 @@ using namespace cv;
 //
 // Preconditions:
 //
-// There is a valid .jpg or .png file in the project folder and the `imread()` call that creates the `input_image` object reads from that file.
+// There is a valid .jpg .png or .gif file in the project folder and the `imread()` call that creates the `input_image` object reads from that file.
 //
 // Postconditions:
 //
@@ -37,6 +37,7 @@ int main(int argc, char* argv[])
 	FILE* file;
 	if (fopen_s(&file, "input.jpg", "r") == 0) input_image = imread("input.jpg");
 	else if (fopen_s(&file, "input.png", "r") == 0) input_image = imread("input.png");
+	else if(fopen_s(&file, "input.gif", "r") == 0) input_image = imread("input.gif");
 	else
 	{
 		std::cerr << "ERROR: No input file found / accessible. This program needs an 'input.jpg' or 'input.png' file in the same folder to work.\n";
