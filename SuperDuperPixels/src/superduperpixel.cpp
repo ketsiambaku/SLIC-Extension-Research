@@ -23,21 +23,19 @@ std::vector<int> SuperDuperPixel::get_superpixels() { return this->superpixels; 
 
 float SuperDuperPixel::distance_from(const std::vector<float>& average)
 {
-	assert(this->average.size() == average->size());
-	float dist = 0;
-	for (int color_channel = 0; color_channel < this->average.size(); color_channel += 1)
-	{
-		float diff = this->average[color_channel] - average[color_channel];
-		// OpenCV SLIC algorithm square diff before adding it to dist.
-		// dist += diff * diff;
-		// Just take absolute value to do mahnattan distance instead.
-		dist += abs(diff);
-	}
-	// Just use manhattan distance here.
-	// Could do this to be more precise (euclidian distance, would also need to square the diff above), but OpenCV
-	// SLIC algorithm doesn't use it either.
-	// dist = sqrt(dist);
-	return dist;
+    assert(this->average.size() == average.size());
+    //                                  ^^^^^^^^
+    float dist = 0;
+    for (int color_channel = 0; color_channel < this->average.size(); color_channel += 1)
+    {
+        float diff = this->average[color_channel] - average[color_channel];
+        // OpenCV SLIC algorithm square diff before adding it to dist.
+        // dist += diff * diff;
+        // Just take absolute value to do manhattan distance instead.
+        dist += abs(diff);
+    }
+    // Just use manhattan distance here.
+    return dist;
 }
 
 float SuperDuperPixel::distance_from(const std::vector< std::vector<float> >& histogram)
