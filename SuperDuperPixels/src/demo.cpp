@@ -122,9 +122,9 @@ int main(int argc, char* argv[])
 	// More buckets means superpixels are less likely to be similar enough to be grouped
 	// Less buckets means superpixels are more likely to be similar enough to be grouped
 	// smoothness = 100.0, distance = 2.0
-	// smoothness = 0.0, distance = 2.5
+	// smoothness = 0.0, distance = 2.15
 	const int num_buckets[] = {8, 32, 32};
-	const float max_histogram_distance = 2.15;
+	const float max_histogram_distance = 2.15f;
 	slic_2->duperizeWithHistogram(num_buckets, max_histogram_distance, false);
 	// Display superpixels
 	Mat histogram_output = show_superpixels(slic_2, input_image, "Super-duper-pixels (grouped by color histograms)");
