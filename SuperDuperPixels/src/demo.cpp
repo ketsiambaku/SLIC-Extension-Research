@@ -56,7 +56,7 @@ Mat show_superpixels(const Ptr<SuperpixelSLIC>& slic, const Mat& input_image, co
 //
 // Postconditions:
 //
-// A file called output.png should be in the project folder.
+// 3 files called superpixels.png, superduperpixels_average.png, and superduperpixels_histogram.png should be in the project folder.
 int main(int argc, char* argv[])
 {
 	// Move out of build/Debug into root of project folder
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 	namedWindow(window_name);
 
 	const int avg_superpixel_size = 25; // Default: 100
-	const float smoothness = 100.0f; // Default: 10.0
+	const float smoothness = 0.0f; // Default: 10.0
 	const int iterations = 1; // Default: 10
 	const int min_superpixel_size_percent = 4;
 
@@ -98,7 +98,9 @@ int main(int argc, char* argv[])
 	slic_2->enforceLabelConnectivity(min_superpixel_size_percent);
 
 	// Display superpixels
-	show_superpixels(slic_1, input_image, window_name);
+	Mat output = show_superpixels(slic_1, input_image, window_name);
+	// Write output to image file
+	imwrite("superpixels.png", output);
 	
 	// Higher values means superpixels are more likely to be similar enough to be grouped
 	// Lower values means superpixels are less likely to be similar enough to be grouped
@@ -106,15 +108,18 @@ int main(int argc, char* argv[])
 	// Display superpixels
 	Mat average_output = show_superpixels(slic_1, input_image, window_name);
 	// Write output to an image file
-	imwrite("average_output.png", average_output);
+	imwrite("superpixels_average.png", average_output);
 	
 	// More buckets means superpixels are less likely to be similar enough to be grouped
 	// Less buckets means superpixels are more likely to be similar enough to be grouped
+	// Distance of 2.0 is good for smoothness 100.0f
+	// Distance of 2.5 is good for smoothness of 0.0f
 	const int num_buckets[] = {8, 64, 64};
-	slic_2->duperizeWithHistogram(num_buckets, 2.0f);
+	slic_2->duperizeWithHistogram(num_buckets, 2.5f);
 	// Display superpixels
-	Mat histogram_output = show_superpixels(slic_2, input_image, window_name);// Write output to an image file
-	imwrite("histogram_output.png", histogram_output);
+	Mat histogram_output = show_superpixels(slic_2, input_image, window_name);
+	// Write output to an image file
+	imwrite("superpixels_histogram.png", histogram_output);
 	
 
 	return 0;
