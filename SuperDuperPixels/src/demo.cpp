@@ -23,6 +23,9 @@ using namespace cv;
 // window_name: the name of the window to display the superpixels to using cv::imshow()
 Mat show_superpixels(const Ptr<SuperpixelSLIC>& slic, const Mat& input_image, const String& window_name)
 {
+	// Create the window to display to
+	namedWindow(window_name);
+
 	// Gets overlay image of superpixels
 	Mat superpixels;
 	slic->getLabelContourMask(superpixels);
@@ -43,7 +46,13 @@ Mat show_superpixels(const Ptr<SuperpixelSLIC>& slic, const Mat& input_image, co
 
 	// Displays output to a window
 	imshow(window_name, output);
+	// Wait until the user presses a key or closes the window
 	waitKey(0);
+	// If the user closed the window (pressed the x button), exit the whole program
+	if (getWindowProperty(window_name, WND_PROP_VISIBLE) < 1)
+		exit(0);
+	// Close the window and return the image if the user pressed a button to continue
+	destroyWindow(window_name);
 	return output;
 }
 
@@ -79,8 +88,6 @@ int main(int argc, char* argv[])
 	cvtColor(input_image, cielab_image, COLOR_RGB2Lab);
 
 	// Creates window to display output to
-	const String window_name = "Superpixels";
-	namedWindow(window_name);
 
 	const int avg_superpixel_size = 25; // Default: 100
 	const float smoothness = 0.0f; // Default: 10.0
@@ -97,7 +104,7 @@ int main(int argc, char* argv[])
 	slic_2->enforceLabelConnectivity(min_superpixel_size_percent);
 
 	// Display superpixels
-	Mat output = show_superpixels(slic_1, input_image, window_name);
+	Mat output = show_superpixels(slic_1, input_image, "Superpixels");
 	// Write output to image file
 	imwrite("superpixels.png", output);
 	
@@ -106,7 +113,7 @@ int main(int argc, char* argv[])
 	const float max_average_distance = 20.0;
 	slic_1->duperizeWithAverage(max_average_distance);
 	// Display superpixels
-	Mat average_output = show_superpixels(slic_1, input_image, window_name);
+	Mat average_output = show_superpixels(slic_1, input_image, "Super-duper-pixels (grouped by average color)");
 	// Write output to an image file
 	imwrite("superpixels_average.png", average_output);
 	
@@ -118,7 +125,7 @@ int main(int argc, char* argv[])
 	const float max_histogram_distance = 2.5;
 	slic_2->duperizeWithHistogram(num_buckets, max_histogram_distance);
 	// Display superpixels
-	Mat histogram_output = show_superpixels(slic_2, input_image, window_name);
+	Mat histogram_output = show_superpixels(slic_2, input_image, "Super-duper-pixels (grouped by color histograms)");
 	// Write output to an image file
 	imwrite("superpixels_histogram.png", histogram_output);
 
