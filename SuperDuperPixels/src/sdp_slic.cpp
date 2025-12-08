@@ -164,10 +164,10 @@ public:
 	//////////////////////////////////////////////////
 
 	// combines similar adjacent superpixels into super-duper-pixels using average colors of superpixels
-	virtual void duperizeWithAverage(const float distance) CV_OVERRIDE;
+	virtual void duperizeWithAverage(const float distance, const bool use_duper_distance = false) CV_OVERRIDE;
 
 	// combines similar adjacent superpixels into super-duper-pixels using (normalized) color histograms of superpixels
-	virtual void duperizeWithHistogram(const int num_buckets[], const float distance) CV_OVERRIDE;
+	virtual void duperizeWithHistogram(const int num_buckets[], const float distance, const bool use_duper_distance = false) CV_OVERRIDE;
 
 
 protected:
@@ -308,6 +308,7 @@ private:
 	inline void groupSuperpixels
 	(
 		const float max_distance,
+		const bool use_duper_distance,
 		const vector< set<int> >& superpixel_neighbors,
 		const vector< vector<float> >& superpixel_average_colors,
 		const vector<int>& superpixel_population,
@@ -321,6 +322,7 @@ private:
 	(
 		const int num_buckets[],
 		const float max_distance,
+		const bool use_duper_distance,
 		const vector< set<int> >& superpixel_neighbors,
 		const vector< vector< vector<float> >>& superpixel_color_histograms,
 		const vector<int>& superpixel_population,
@@ -332,6 +334,7 @@ private:
 	// Gets the color distance between 2 superpixels' average colors
 	inline float getColorDistance
 	(
+		const bool use_duper_distance,
 		const std::list<SuperDuperPixel>& superduperpixels,
 		const vector<SuperDuperPixel*>& superduperpixel_pointers,
 		const vector< vector<float> >& superpixel_average_colors, 
@@ -344,6 +347,7 @@ private:
 	inline float getColorDistance
 	(
 		const int num_buckets[],
+		const bool use_duper_distance,
 		const std::list<SuperDuperPixel>& superduperpixels,
 		const vector<SuperDuperPixel*>& superduperpixel_pointers,
 		const vector< vector< vector<float> >>& superpixel_color_histograms, 
@@ -790,7 +794,7 @@ void SuperpixelSLICImpl::enforceLabelConnectivity( int min_element_size )
  * Combine adjacent superpixels into super-duper-pixels if they're similar enough in color.
  * Uses average colors of superpixels to determine if they're similar enough in color.
  */
-void SuperpixelSLICImpl::duperizeWithAverage(const float max_distance)
+void SuperpixelSLICImpl::duperizeWithAverage(const float max_distance, const bool use_duper_distance)
 {
 	// Graph of which superpixels are adjecent to each other
 	// First dimension is each superpixel
@@ -820,6 +824,7 @@ void SuperpixelSLICImpl::duperizeWithAverage(const float max_distance)
 	this->groupSuperpixels
 	(
 		max_distance,
+		use_duper_distance,
 		superpixel_neighbors,
 		superpixel_average_colors,
 		superpixel_population,
@@ -843,7 +848,7 @@ void SuperpixelSLICImpl::duperizeWithAverage(const float max_distance)
  * Combine adjacent superpixels into super-duper-pixels if they're similar enough in color.
  * Uses (normalized) color histograms of superpixels to determine if they're similar enough in color.
  */
-void SuperpixelSLICImpl::duperizeWithHistogram(const int num_buckets[], const float distance)
+void SuperpixelSLICImpl::duperizeWithHistogram(const int num_buckets[], const float distance, const bool use_duper_distance)
 {
 	// Graph of which superpixels are adjecent to each other
 	// First dimension is each superpixel
@@ -881,6 +886,7 @@ void SuperpixelSLICImpl::duperizeWithHistogram(const int num_buckets[], const fl
 	(
 		num_buckets,
 		distance,
+		use_duper_distance,
 		superpixel_neighbors,
 		superpixel_color_histograms,
 		superpixel_population,
@@ -1144,6 +1150,7 @@ void SuperpixelSLICImpl::addColorsToHistograms
 void SuperpixelSLICImpl::groupSuperpixels
 (
 	const float max_distance,
+	const bool use_duper_distance,
 	const vector< set<int> >& superpixel_neighbors,
 	const vector< vector<float> >& superpixel_average_colors,
 	const vector<int>& superpixel_population,
@@ -1170,6 +1177,7 @@ void SuperpixelSLICImpl::groupSuperpixels
 			// Get color distance to neighbor
 			float neighbor_distance = this->getColorDistance
 			(
+				use_duper_distance,
 				superduperpixels,
 				superduperpixel_pointers,
 				superpixel_average_colors,
@@ -1209,6 +1217,7 @@ void SuperpixelSLICImpl::groupSuperpixels
 (
 	const int num_buckets[],
 	const float max_distance,
+	const bool use_duper_distance,
 	const vector< set<int> >& superpixel_neighbors,
 	const vector< vector< vector<float> >>& superpixel_color_histograms,
 	const vector<int>& superpixel_population,
@@ -1236,6 +1245,7 @@ void SuperpixelSLICImpl::groupSuperpixels
 			float neighbor_distance = this->getColorDistance
 			(
 				num_buckets,
+				use_duper_distance,
 				superduperpixels,
 				superduperpixel_pointers,
 				superpixel_color_histograms,
@@ -1274,6 +1284,7 @@ void SuperpixelSLICImpl::groupSuperpixels
 // Gets the color distance between 2 superpixels' average colors
 float SuperpixelSLICImpl::getColorDistance
 (
+	const bool use_duper_distance,
 	const std::list<SuperDuperPixel>& superduperpixels,
 	const vector<SuperDuperPixel*>& superduperpixel_pointers,
 	const vector< vector<float> >& superpixel_average_colors,
@@ -1282,14 +1293,21 @@ float SuperpixelSLICImpl::getColorDistance
 	const int neighbor
 )
 {
+	// If this superpixel is already in a superduperpixel, use the distance from that instead of the individual superpixel
+	// Don't do this if use_duper_distance is false though
+	vector<float> avg_colors = use_duper_distance && superduperpixel_pointers[superpixel] != NULL ?
+	(*superduperpixel_pointers[superpixel]).get_average() :
+	average_colors;
+
 	// If the neighbor is already in a super-duper-pixel, use the distance to the whole super-duper-pixel it's in instead of just the neighbor
-	if (superduperpixel_pointers[neighbor] != NULL)
-		return (*superduperpixel_pointers[neighbor]).distance_from(average_colors);
+	// Don't do this if use_duper_distance is false though
+	if (use_duper_distance && superduperpixel_pointers[neighbor] != NULL)
+		return (*superduperpixel_pointers[neighbor]).distance_from(avg_colors);
 
 	float neighbor_distance = 0;
 	for (int color_channel = 0; color_channel < m_nr_channels; color_channel += 1)
 	{
-		float difference = superpixel_average_colors[color_channel][superpixel] - superpixel_average_colors[color_channel][neighbor];
+		float difference = avg_colors[color_channel] - superpixel_average_colors[color_channel][neighbor];
 		// opencv slic algorithm square diff before adding it to dist.
 		// neighbor_distance += difference * difference;
 		// Just take absolute value to do mahnattan distance instead.
@@ -1306,6 +1324,7 @@ float SuperpixelSLICImpl::getColorDistance
 float SuperpixelSLICImpl::getColorDistance
 (
 	const int num_buckets[],
+	const bool use_duper_distance,
 	const std::list<SuperDuperPixel>& superduperpixels,
 	const vector<SuperDuperPixel*>& superduperpixel_pointers,
 	const vector< vector< vector<float> >>& superpixel_color_histograms, 
@@ -1314,15 +1333,22 @@ float SuperpixelSLICImpl::getColorDistance
 	const int neighbor
 )
 {
+	// If this superpixel is already in a superduperpixel, use the distance from that instead of the individual superpixel
+	// Don't do this if use_duper_distance is false though
+	vector< vector<float> > histogram = use_duper_distance && superduperpixel_pointers[superpixel] != NULL ?
+	(*superduperpixel_pointers[superpixel]).get_histogram() :
+	color_histogram;
+
 	// If the neighbor is already in a super-duper-pixel, use the distance to the whole super-duper-pixel it's in instead of just the neighbor
-	if (superduperpixel_pointers[neighbor] != NULL)
+	// Don't do this if use_duper_distance is false though
+	if (use_duper_distance && superduperpixel_pointers[neighbor] != NULL)
 		return (*superduperpixel_pointers[neighbor]).distance_from(color_histogram);
 
 	float neighbor_distance = 0;
 	for (int color_channel = 0; color_channel < m_nr_channels; color_channel += 1)
 	for (int bucket = 0; bucket < num_buckets[color_channel]; bucket += 1)
 	{
-		float difference = superpixel_color_histograms[color_channel][bucket][superpixel] - superpixel_color_histograms[color_channel][bucket][neighbor];
+		float difference = histogram[color_channel][bucket] - superpixel_color_histograms[color_channel][bucket][neighbor];
 		// opencv slic algorithm square diff before adding it to dist.
 		// neighbor_distance += difference * difference;
 		// Just take absolute value to do mahnattan distance instead.

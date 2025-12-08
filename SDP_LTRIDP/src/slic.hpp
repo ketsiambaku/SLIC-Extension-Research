@@ -154,8 +154,12 @@ public:
 
     @param distance The max distance the average colors of superpixels can be from each other to be
 	combined.
+
+	@param use_duper_distance If false, it only combines neighboring superpixels based on their individual stats.
+	If true, it combines superpixels based on the stats of the superduperpixels they're in (if they're already
+	in one).
      */
-	CV_WRAP virtual void duperizeWithAverage(const float distance) = 0;
+	void duperizeWithAverage(const float distance, const bool use_duper_distance = false);
 
 	/** @brief Combines adjacent superpixels into super-duper-pixels if they're similar enough in color.
 	
@@ -169,8 +173,17 @@ public:
 
 	@param distance The max distance the (normalized) color histograms of superpixels can be from each
 	other to be combined.
+
+	@param use_duper_distance If false, it only combines neighboring superpixels based on their individual stats.
+	If true, it combines superpixels based on the stats of the superduperpixels they're in (if they're already
+	in one).
      */
-	CV_WRAP virtual void duperizeWithHistogram(const int num_buckets[], const float distance) = 0;
+	void duperizeWithHistogram
+	(
+		const int num_buckets[],
+		const float distance,
+		const bool use_duper_distance = false
+	);
 
 protected:
     // Image dimensions
@@ -337,6 +350,7 @@ private:
 	inline void groupSuperpixels
 	(
 		const float max_distance,
+		const bool use_duper_distance,
 		const std::vector< std::set<int> >& superpixel_neighbors,
 		const std::vector< std::vector<float> >& superpixel_average_colors,
 		const std::vector<int>& superpixel_population,
@@ -350,6 +364,7 @@ private:
 	(
 		const int num_buckets[],
 		const float max_distance,
+		const bool use_duper_distance,
 		const std::vector< std::set<int> >& superpixel_neighbors,
 		const std::vector< std::vector< std::vector<float> >>& superpixel_color_histograms,
 		const std::vector<int>& superpixel_population,
@@ -361,6 +376,7 @@ private:
 	// Gets the color distance between 2 superpixels' average colors
 	inline float getColorDistance
 	(
+		const bool use_duper_distance,
 		const std::list<SuperDuperPixel>& superduperpixels,
 		const std::vector<SuperDuperPixel*>& superduperpixel_pointers,
 		const std::vector< std::vector<float> >& superpixel_average_colors, 
@@ -373,6 +389,7 @@ private:
 	inline float getColorDistance
 	(
 		const int num_buckets[],
+		const bool use_duper_distance,
 		const std::list<SuperDuperPixel>& superduperpixels,
 		const std::vector<SuperDuperPixel*>& superduperpixel_pointers,
 		const std::vector< std::vector< std::vector<float> >>& superpixel_color_histograms, 

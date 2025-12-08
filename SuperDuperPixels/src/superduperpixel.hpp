@@ -13,6 +13,8 @@ public:
 	SuperDuperPixel(int superpixel, std::vector< std::vector<float> >, int pixel_count);
 	SuperDuperPixelMode get_mode();
 	std::vector<int> get_superpixels();
+	std::vector<float> get_average();
+	std::vector< std::vector<float> > get_histogram();
 	float distance_from(const std::vector<float>& average);
 	float distance_from(const std::vector< std::vector<float> >& histogram);
 	void add_superpixel(int superpixel, const std::vector<float>& average, int pixel_count);

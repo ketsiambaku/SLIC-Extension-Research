@@ -19,6 +19,8 @@ SuperDuperPixel::SuperDuperPixel(int superpixel, std::vector< std::vector<float>
 
 SuperDuperPixelMode SuperDuperPixel::get_mode() { return this->mode; }
 std::vector<int> SuperDuperPixel::get_superpixels() { return this->superpixels; }
+std::vector<float> SuperDuperPixel::get_average() { return this->average; }
+std::vector< std::vector<float> > SuperDuperPixel::get_histogram() { return this->histogram; }
 
 float SuperDuperPixel::distance_from(const std::vector<float>& average)
 {
