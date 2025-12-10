@@ -3,8 +3,9 @@
  * @brief LTriDP-enhanced SLIC superpixel segmentation for MRI images
  * 
  * @author Ketsia Mbaku
+ * @author Chandler Calkins
  * 
- * This file defines the LTriDPSuperpixelSLIC class, which implements the improved SLIC
+ * This file defines the SDPLTriDPSLIC class, which implements the improved SLIC
  * algorithm described in [1].
  * 
  * The implementation is adapted from OpenCV's SuperpixelSLIC [2]
@@ -32,22 +33,129 @@
 #include <vector>
 #include <set>
 #include <list>
-#include "superduperpixel.hpp"
+#include <cmath>
 
-namespace ltridp {
+namespace sdp_ltridp {
 
 /**
- * @class LTriDPSuperpixelSLIC
+ * @struct SuperDuperPixel
+ * @brief Represents a super-duper-pixel created by merging similar superpixels
+ */
+struct SuperDuperPixel {
+    std::set<int> superpixels;          // Set of superpixel IDs in this super-duper-pixel
+    std::vector<float> average_colors;   // Average color values
+    std::vector<std::vector<float>> color_histogram;  // Color histogram
+    int population;                      // Total number of pixels
+    
+    SuperDuperPixel() : population(0) {}
+    
+    SuperDuperPixel(int initial_superpixel, const std::vector<float>& colors, int pop) 
+        : average_colors(colors), population(pop) {
+        superpixels.insert(initial_superpixel);
+    }
+    
+    SuperDuperPixel(int initial_superpixel, const std::vector<std::vector<float>>& hist, int pop)
+        : color_histogram(hist), population(pop) {
+        superpixels.insert(initial_superpixel);
+    }
+    
+    void add_superpixel(int sp_id, const std::vector<float>& colors, int pop) {
+        superpixels.insert(sp_id);
+        // Weighted average of colors
+        for (size_t i = 0; i < average_colors.size() && i < colors.size(); ++i) {
+            average_colors[i] = (average_colors[i] * population + colors[i] * pop) / (population + pop);
+        }
+        population += pop;
+    }
+    
+    void add_superpixel(int sp_id, const std::vector<std::vector<float>>& hist, int pop) {
+        superpixels.insert(sp_id);
+        // Merge histograms
+        if (color_histogram.size() == hist.size()) {
+            for (size_t ch = 0; ch < color_histogram.size(); ++ch) {
+                for (size_t bin = 0; bin < color_histogram[ch].size() && bin < hist[ch].size(); ++bin) {
+                    color_histogram[ch][bin] = (color_histogram[ch][bin] * population + hist[ch][bin] * pop) / (population + pop);
+                }
+            }
+        }
+        population += pop;
+    }
+    
+    const std::set<int>& get_superpixels() const {
+        return superpixels;
+    }
+
+    const std::vector<float>& get_average() const {
+        return average_colors;
+    }
+
+    const std::vector<std::vector<float>>& get_histogram() const {
+        return color_histogram;
+    }
+
+    float distance_from(const std::vector<float>& colors) const {
+        if (average_colors.empty()) {
+            return 0.0f;
+        }
+
+        float dist = 0.0f;
+        for (size_t i = 0; i < average_colors.size() && i < colors.size(); ++i) {
+            dist += std::abs(average_colors[i] - colors[i]);
+        }
+        return dist;
+    }
+
+    float distance_from(const std::vector<std::vector<float>>& histogram) const {
+        if (color_histogram.empty()) {
+            return 0.0f;
+        }
+
+        float dist = 0.0f;
+        for (size_t ch = 0; ch < color_histogram.size() && ch < histogram.size(); ++ch) {
+            for (size_t bin = 0; bin < color_histogram[ch].size() && bin < histogram[ch].size(); ++bin) {
+                dist += std::abs(color_histogram[ch][bin] - histogram[ch][bin]);
+            }
+        }
+        return dist;
+    }
+    
+    SuperDuperPixel& operator+=(const SuperDuperPixel* other) {
+        if (other) {
+            superpixels.insert(other->superpixels.begin(), other->superpixels.end());
+            if (!average_colors.empty() && !other->average_colors.empty()) {
+                for (size_t i = 0; i < average_colors.size() && i < other->average_colors.size(); ++i) {
+                    average_colors[i] = (average_colors[i] * population + other->average_colors[i] * other->population) /
+                                        (population + other->population);
+                }
+            }
+
+            if (!color_histogram.empty() && !other->color_histogram.empty()) {
+                for (size_t ch = 0; ch < color_histogram.size() && ch < other->color_histogram.size(); ++ch) {
+                    for (size_t bin = 0; bin < color_histogram[ch].size() && bin < other->color_histogram[ch].size(); ++bin) {
+                        color_histogram[ch][bin] = (color_histogram[ch][bin] * population + other->color_histogram[ch][bin] * other->population) /
+                                                   (population + other->population);
+                    }
+                }
+            }
+
+            population += other->population;
+        }
+        return *this;
+    }
+};
+
+/**
+ * @class SDPLTriDPSLIC
  * @brief Texture-enhanced SLIC superpixel segmentation with gray-threshold center updating
  * 
  * This class implements the improved SLIC algorithm that incorporates LTriDP texture
  * features into the distance metric and uses gray-difference threshold filtering
  * when updating cluster centers.
  */
-class LTriDPSuperpixelSLIC {
+class SDPLTriDPSLIC {
 public:
     /**
-     * @brief Constructor - Initialize a new LTriDPSuperpixelSLIC object
+     * @brief Constructor - Initialize a new SDPLTriDPSLIC object
      * 
      * Pre-conditions:
      * - image must be non-empty, gray-scale CV_8U
@@ -66,12 +174,12 @@ public:
      * @param region_size Approximate superpixel size S
      * @param ruler Compactness parameter m
      */
-    LTriDPSuperpixelSLIC(const cv::Mat& image, const cv::Mat& texture, int region_size = 20, float ruler = 10.0f);
+    SDPLTriDPSLIC(const cv::Mat& image, const cv::Mat& texture, int region_size = 20, float ruler = 10.0f);
     
     /**
      * @brief Destructor - Clean up resources
      */
-    ~LTriDPSuperpixelSLIC();
+    ~SDPLTriDPSLIC();
     
     /**
      * @brief Perform superpixel segmentation iterations

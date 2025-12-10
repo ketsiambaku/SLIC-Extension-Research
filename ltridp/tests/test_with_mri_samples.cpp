@@ -5,6 +5,13 @@
  * and saves results to data/output/ with statistics.
  * 
  * Author: Ketsia Mbaku
+ * 
+ * Disclaimer:
+ * This test program was created with assistance from AI model
+ * model: COPILOT
+ * After writing the initial version of this program, I used
+ * Prompt: "Output user friendly update to stdout at all checkpoints in the pipeline and add test input/output validation."
+ * 
  */
 
 #include <opencv2/opencv.hpp>
@@ -26,18 +33,6 @@ cv::Mat createComparison(const cv::Mat& original, const cv::Mat& processed) {
              cv::Scalar(255), 2);
     
     return comparison;
-}
-
-// Compute and display image statistics
-void displayStats(const std::string& label, const cv::Mat& image) {
-    cv::Scalar mean, stdDev;
-    cv::meanStdDev(image, mean, stdDev);
-    
-    std::cout << "  " << label << ":" << std::endl;
-    std::cout << "    Mean:   " << std::fixed << std::setprecision(2) 
-              << mean[0] << std::endl;
-    std::cout << "    StdDev: " << std::fixed << std::setprecision(2) 
-              << stdDev[0] << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -80,16 +75,12 @@ int main(int argc, char** argv) {
             continue;
         }
         
-        displayStats("Before", input);
-        
         cv::Mat output;
         if (!preprocessor.enhance(input, output, 0.5)) {
             std::cerr << "  Error: Preprocessing failed" << std::endl;
             failCount++;
             continue;
         }
-        
-        displayStats("After", output);
 
         std::string stem = imagePath.stem().string();
         std::string ext = imagePath.extension().string();

@@ -55,7 +55,7 @@ bool FeatureExtractor::extract(const cv::Mat& inputImage, cv::Mat& featureMap) {
     return true;
 }
 
-void FeatureExtractor::extractNeighborhood(const cv::Mat& image, int row, int col, float neighbors[9]) {
+void FeatureExtractor::extractNeighborhood(const cv::Mat& image, int row, int col, float neighbors[9]) const {
     /**
      * gc is the center pixel at (x,y)
      * gi are the neighbors indexed clockwise from right:

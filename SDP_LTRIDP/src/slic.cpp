@@ -44,7 +44,7 @@
  * 
  * @author Ketsia Mbaku
  * 
- * This file implements the LTriDPSuperpixelSLIC class.
+ * This file implements the SDPLTriDPSLIC class.
  * 
  * References:
  * [1] Wang et al. (2020), "Image Segmentation of Brain MRI Based on LTriDP 
@@ -59,9 +59,9 @@
 #include <stdexcept>
 #include <iostream>
 
-namespace ltridp {
+namespace sdp_ltridp {
 
-LTriDPSuperpixelSLIC::LTriDPSuperpixelSLIC(const cv::Mat& image,
+SDPLTriDPSLIC::SDPLTriDPSLIC(const cv::Mat& image,
                                            const cv::Mat& texture,  // ADDED: texture input
                                            int region_size,
                                            float ruler)
@@ -102,12 +102,12 @@ LTriDPSuperpixelSLIC::LTriDPSuperpixelSLIC(const cv::Mat& image,
     initialize();
 }
 
-LTriDPSuperpixelSLIC::~LTriDPSuperpixelSLIC()
+SDPLTriDPSLIC::~SDPLTriDPSLIC()
 {
     // Automatic cleanup via std::vector and cv::Mat destructors
 }
 
-void LTriDPSuperpixelSLIC::initialize()
+void SDPLTriDPSLIC::initialize()
 {
     // Calculate initial number of superpixels
     // K = N / S² where N = total pixels, S = region_size
@@ -131,7 +131,7 @@ void LTriDPSuperpixelSLIC::initialize()
     perturbSeeds(edgemag);
 }
 
-void LTriDPSuperpixelSLIC::detectEdges(cv::Mat& edgemag)
+void SDPLTriDPSLIC::detectEdges(cv::Mat& edgemag)
 {
     // Compute gradient magnitude using Sobel operators
     // This follows OpenCV SLIC's DetectChEdges approach
@@ -144,7 +144,7 @@ void LTriDPSuperpixelSLIC::detectEdges(cv::Mat& edgemag)
     cv::magnitude(dx, dy, edgemag);
 }
 
-void LTriDPSuperpixelSLIC::perturbSeeds(const cv::Mat& edgemag)
+void SDPLTriDPSLIC::perturbSeeds(const cv::Mat& edgemag)
 {
     // For each seed, search 3×3 neighborhood and move to
     // position with minimum edge magnitude to avoid placing seeds on edges
@@ -184,7 +184,7 @@ void LTriDPSuperpixelSLIC::perturbSeeds(const cv::Mat& edgemag)
     }
 }
 
-void LTriDPSuperpixelSLIC::getSeeds()
+void SDPLTriDPSLIC::getSeeds()
 {
     // This implementation is different from standard SLIC)
     // Place seeds on regular grid with spacing = region_size
@@ -217,7 +217,7 @@ void LTriDPSuperpixelSLIC::getSeeds()
     }
 }
 
-void LTriDPSuperpixelSLIC::iterate(int num_iterations)
+void SDPLTriDPSLIC::iterate(int num_iterations)
 {
     if (num_iterations <= 0) {
         throw std::invalid_argument("Number of iterations must be positive");
@@ -226,15 +226,34 @@ void LTriDPSuperpixelSLIC::iterate(int num_iterations)
     performLTriDPSLIC(num_iterations);
 }
 
-void LTriDPSuperpixelSLIC::performLTriDPSLIC(int num_iterations)
+void SDPLTriDPSLIC::performLTriDPSLIC(int num_iterations)
 {
     // Distance tracking matrix
     cv::Mat distvec(m_height, m_width, CV_32F);
     
     // Spatial distance weight
-    // Standard SLIC: xywt = (S/m)²
-    const float xywt = (static_cast<float>(m_region_size) / m_ruler) * 
-                       (static_cast<float>(m_region_size) / m_ruler);
+    // Standard SLIC: spatial_weight = (m / S)^2
+    const float compactness_ratio = m_ruler / static_cast<float>(m_region_size);
+    const float spatial_weight = compactness_ratio * compactness_ratio;
+    // Feature cues shrink after histogram reconstruction + gamma, so boost them by (m^2)/4
+    // to keep the combined (gray + texture) term on the same order as spatial distance.
+    const float feature_scale = 0.25f * m_ruler * m_ruler;
+
+    // Normalization factors keep gray/texture residuals comparable to spatial cost
+    constexpr float kVarianceEpsilon = 1e-6f;
+    constexpr float texture_weight = 0.6f;
+
+    // Use global variance instead of fixed 1/255 scaling so the metric adapts to
+    // contrast changes introduced by preprocessing (matches Wang et al.'s intent).
+    cv::Scalar gray_mean, gray_stddev;
+    cv::meanStdDev(m_image, gray_mean, gray_stddev);
+    const float gray_variance = static_cast<float>(gray_stddev[0]) * static_cast<float>(gray_stddev[0]);
+    const float inv_gray_variance = 1.0f / (gray_variance + kVarianceEpsilon);
+
+    cv::Scalar texture_mean, texture_stddev;
+    cv::meanStdDev(m_texture, texture_mean, texture_stddev);
+    const float texture_variance = static_cast<float>(texture_stddev[0]) * static_cast<float>(texture_stddev[0]);
+    const float inv_texture_variance = 1.0f / (texture_variance + kVarianceEpsilon);
     
     // Main iteration loop
     for (int itr = 0; itr < num_iterations; itr++) {
@@ -265,35 +284,22 @@ void LTriDPSuperpixelSLIC::performLTriDPSLIC(int num_iterations)
                     float pixel_gray = static_cast<float>(m_image.at<uchar>(y, x));
                     float pixel_tex = static_cast<float>(m_texture.at<uchar>(y, x));  // ADDED: texture pixel value
                     
-                    // Gray distance component
-                    float dc = pixel_gray - center_gray;
-                    dc = dc * dc;  // squared difference
+                    // Gray distance component (normalized by global variance)
+                    float gray_diff = pixel_gray - center_gray;
+                    float dc = gray_diff * gray_diff * inv_gray_variance;
                     
-                    // Texture distance component 
-                    float dt = pixel_tex - center_tex;                       // ADDED: texture distance
-                    dt = dt * dt;  // squared difference                     // ADDED: texture distance
+                    // Texture distance component
+                    float texture_diff = pixel_tex - center_tex;
+                    float dt = texture_diff * texture_diff * inv_texture_variance;
                     
                     // Spatial distance component
                     float dx_diff = static_cast<float>(x) - center_x;
                     float dy_diff = static_cast<float>(y) - center_y;
                     float ds = dx_diff * dx_diff + dy_diff * dy_diff;
                     
-                    // Combined distance metric from paper:
-                    // D = sqrt((dc/Nc)² + (dt/Nt)² + (ds/Ns)²)
-                    // 
-                    // Normalization constants:
-                    // - Nc = max gray difference = 255 (for 8-bit images)
-                    // - Nt = max texture difference = 255 (LTriDP is 0-255)
-                    // - Ns = S (superpixel size)
-                    //
-                    // Simplify: D = sqrt(dc/255² + dt/255² + ds/S²)
-                    //          = sqrt((dc + dt)/255² + ds/(S²))
-                    //
-                    // For computational efficiency, we use:
-                    // D = (dc + dt) + ds/xywt
-                    // where xywt = (S/m)² provides compactness control
-                    
-                    float dist = dc + dt + ds / xywt;
+                    // Combined distance metric: follow Achanta-style weighting
+                    // where spatial term is scaled by (m / S)^2.
+                    float dist = feature_scale * (dc + texture_weight * dt) + spatial_weight * ds;
                     
                     // Assign to nearest cluster
                     if (dist < distvec.at<float>(y, x)) {
@@ -309,7 +315,7 @@ void LTriDPSuperpixelSLIC::performLTriDPSLIC(int num_iterations)
     }
 }
 
-void LTriDPSuperpixelSLIC::updateCenters()
+void SDPLTriDPSLIC::updateCenters()
 {
     // Calculate gray threshold α (standard deviation of image)
     const float gray_threshold = calculateGrayThreshold();
@@ -360,9 +366,14 @@ void LTriDPSuperpixelSLIC::updateCenters()
             m_kseeds_tex[k] = sigma_tex[k] / count;                      // ADDED: update texture center
         }
     }
+
+	// Final safeguard: ensure updated centers are not sitting directly on edges
+	cv::Mat post_update_edges;
+	detectEdges(post_update_edges);
+	perturbSeeds(post_update_edges);
 }
 
-float LTriDPSuperpixelSLIC::calculateGrayThreshold() const            // ADDED: new function for threshold
+float SDPLTriDPSLIC::calculateGrayThreshold() const            // ADDED: new function for threshold
 {
     // Calculate standard deviation of image gray values
     // α = σ (standard deviation)
@@ -370,20 +381,22 @@ float LTriDPSuperpixelSLIC::calculateGrayThreshold() const            // ADDED: 
     cv::Scalar mean, stddev;
     cv::meanStdDev(m_image, mean, stddev);
     
-    return static_cast<float>(stddev[0]);
+    // Broaden the acceptance band slightly so interior pixels continue to
+    // influence cluster centers even after contrast-enhancing transforms.
+    return static_cast<float>(stddev[0]) * 1.5f;
 }
 
-void LTriDPSuperpixelSLIC::getLabels(cv::Mat& labels_out) const
+void SDPLTriDPSLIC::getLabels(cv::Mat& labels_out) const
 {
     labels_out = m_klabels.clone();
 }
 
-int LTriDPSuperpixelSLIC::getNumberOfSuperpixels() const
+int SDPLTriDPSLIC::getNumberOfSuperpixels() const
 {
     return m_numlabels;
 }
 
-void LTriDPSuperpixelSLIC::getLabelContourMask(cv::Mat& mask, bool thick_line) const
+void SDPLTriDPSLIC::getLabelContourMask(cv::Mat& mask, bool thick_line) const
 {
     // Create binary mask highlighting superpixel boundaries
     
@@ -429,7 +442,7 @@ void LTriDPSuperpixelSLIC::getLabelContourMask(cv::Mat& mask, bool thick_line) c
     }
 }
 
-void LTriDPSuperpixelSLIC::enforceLabelConnectivity(int min_element_size)
+void SDPLTriDPSLIC::enforceLabelConnectivity(int min_element_size)
 {
     // Enforce connectivity by relabeling small disconnected components
     // Adapted from OpenCV SuperpixelSLIC::enforceLabelConnectivity()
@@ -515,7 +528,7 @@ void LTriDPSuperpixelSLIC::enforceLabelConnectivity(int min_element_size)
  * Combine adjacent superpixels into super-duper-pixels if they're similar enough in color.
  * Uses average colors of superpixels to determine if they're similar enough in color.
  */
-void LTriDPSuperpixelSLIC::duperizeWithAverage(const float max_distance, const bool use_duper_distance = false)
+void SDPLTriDPSLIC::duperizeWithAverage(const float max_distance, const bool use_duper_distance)
 {
 	// Graph of which superpixels are adjecent to each other
 	// First dimension is each superpixel
@@ -562,7 +575,7 @@ void LTriDPSuperpixelSLIC::duperizeWithAverage(const float max_distance, const b
  * Combine adjacent superpixels into super-duper-pixels if they're similar enough in color.
  * Uses (normalized) color histograms of superpixels to determine if they're similar enough in color.
  */
-void LTriDPSuperpixelSLIC::duperizeWithHistogram(const int num_buckets[], const float distance, const bool use_duper_distance = false)
+void SDPLTriDPSLIC::duperizeWithHistogram(const int num_buckets[], const float distance, const bool use_duper_distance)
 {
 	// Graph of which superpixels are adjecent to each other
 	// First dimension is each superpixel
@@ -613,7 +626,7 @@ void LTriDPSuperpixelSLIC::duperizeWithHistogram(const int num_buckets[], const 
 	m_numlabels = superduperpixel_count;
 }
 
-void LTriDPSuperpixelSLIC::findSuperpixelNeighborsAndAverages
+void SDPLTriDPSLIC::findSuperpixelNeighborsAndAverages
 (
 	std::vector< std::set<int> >& superpixel_neighbors,
 	std::vector< std::vector<float> >& superpixel_average_colors,
@@ -649,7 +662,7 @@ void LTriDPSuperpixelSLIC::findSuperpixelNeighborsAndAverages
 	}
 }
 
-void LTriDPSuperpixelSLIC::findSuperpixelNeighborsAndHistograms
+void SDPLTriDPSLIC::findSuperpixelNeighborsAndHistograms
 (
 	const int num_buckets[],
 	std::vector< std::set<int> >& superpixel_neighbors,
@@ -692,7 +705,7 @@ void LTriDPSuperpixelSLIC::findSuperpixelNeighborsAndHistograms
 	}
 }
 
-void LTriDPSuperpixelSLIC::linkNeighborSuperpixels
+void SDPLTriDPSLIC::linkNeighborSuperpixels
 (
 	std::vector< std::set<int> >& superpixel_neighbors,
 	const int current_superpixel,
@@ -718,7 +731,7 @@ void LTriDPSuperpixelSLIC::linkNeighborSuperpixels
 	}
 }
 
-void LTriDPSuperpixelSLIC::addColorsToAverages
+void SDPLTriDPSLIC::addColorsToAverages
 (
 	std::vector< std::vector<float> >& superpixel_average_colors,
 	const int current_superpixel,
@@ -766,7 +779,7 @@ void LTriDPSuperpixelSLIC::addColorsToAverages
 	}
 }
 
-void LTriDPSuperpixelSLIC::addColorsToHistograms
+void SDPLTriDPSLIC::addColorsToHistograms
 (
 	const int num_buckets[],
 	std::vector< std::vector< std::vector<float> >>& superpixel_color_histograms,
@@ -848,7 +861,7 @@ void LTriDPSuperpixelSLIC::addColorsToHistograms
 }
 
 // Groups superpixels into super-duper-pixels based on their average colors
-void LTriDPSuperpixelSLIC::groupSuperpixels
+void SDPLTriDPSLIC::groupSuperpixels
 (
 	const float max_distance,
 	const bool use_duper_distance,
@@ -914,7 +927,7 @@ void LTriDPSuperpixelSLIC::groupSuperpixels
 }
 
 // Groups superpixels into super-duper-pixels based on their color histograms
-void LTriDPSuperpixelSLIC::groupSuperpixels
+void SDPLTriDPSLIC::groupSuperpixels
 (
 	const int num_buckets[],
 	const float max_distance,
@@ -983,7 +996,7 @@ void LTriDPSuperpixelSLIC::groupSuperpixels
 }
 
 // Gets the color distance between 2 superpixels' average colors
-float LTriDPSuperpixelSLIC::getColorDistance
+float SDPLTriDPSLIC::getColorDistance
 (
 	const bool use_duper_distance,
 	const std::list<SuperDuperPixel>& superduperpixels,
@@ -1022,7 +1035,7 @@ float LTriDPSuperpixelSLIC::getColorDistance
 }
 
 // Gets the color distance between 2 superpixels' color histograms
-float LTriDPSuperpixelSLIC::getColorDistance
+float SDPLTriDPSLIC::getColorDistance
 (
 	const int num_buckets[],
 	const bool use_duper_distance,
@@ -1063,7 +1076,7 @@ float LTriDPSuperpixelSLIC::getColorDistance
 }
 
 // Gets a vector of the average colors for a superpixel
-void LTriDPSuperpixelSLIC::extractAverageColors
+void SDPLTriDPSLIC::extractAverageColors
 (
 	const std::vector< std::vector<float> >& superpixel_average_colors,
 	std::vector<float>& average_colors,
@@ -1077,7 +1090,7 @@ void LTriDPSuperpixelSLIC::extractAverageColors
 }
 
 // Gets a vector of the color histogram for a superpixel
-void LTriDPSuperpixelSLIC::extractColorHistogram
+void SDPLTriDPSLIC::extractColorHistogram
 (
 	const int num_buckets[],
 	const std::vector< std::vector< std::vector<float> >>& superpixel_color_histograms,
@@ -1096,7 +1109,7 @@ void LTriDPSuperpixelSLIC::extractColorHistogram
 }
 
 // Combines 2 superpixels into a super-duper-pixel using their average colors
-void LTriDPSuperpixelSLIC::combineIntoSuperDuperPixel
+void SDPLTriDPSLIC::combineIntoSuperDuperPixel
 (
 	std::list<SuperDuperPixel>& superduperpixels,
 	std::vector<SuperDuperPixel*>& superduperpixel_pointers,
@@ -1155,7 +1168,7 @@ void LTriDPSuperpixelSLIC::combineIntoSuperDuperPixel
 }
 
 // Combines 2 superpixels into a super-duper-pixel using their color histograms
-void LTriDPSuperpixelSLIC::combineIntoSuperDuperPixel
+void SDPLTriDPSLIC::combineIntoSuperDuperPixel
 (
 	const int num_buckets[],
 	std::list<SuperDuperPixel>& superduperpixels,
@@ -1214,7 +1227,7 @@ void LTriDPSuperpixelSLIC::combineIntoSuperDuperPixel
 }
 
 // Gives super-duper-pixels indexes to assign to pixels as labels for what superpixel they're in
-int LTriDPSuperpixelSLIC::indexSuperduperpixels
+int SDPLTriDPSLIC::indexSuperduperpixels
 (
 	const std::list<SuperDuperPixel>& superduperpixels,
 	std::vector<int>& superduperpixel_indexes
@@ -1235,7 +1248,7 @@ int LTriDPSuperpixelSLIC::indexSuperduperpixels
 }
 
 // Assigns new super-duper-pixel indexes to pixels in the image as labels for what superpixel they're in
-void LTriDPSuperpixelSLIC::assignSuperduperpixels(const std::vector<int>& superduperpixel_indexes)
+void SDPLTriDPSLIC::assignSuperduperpixels(const std::vector<int>& superduperpixel_indexes)
 {
 	// Change m_klabels so pixels use superduperpixel indexes instead of their old superpixel labels
 	for (int y = 0; y < m_height; y += 1)

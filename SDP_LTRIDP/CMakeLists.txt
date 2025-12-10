@@ -1,15 +1,27 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(SuperDuperPixels)
+project(SDP_LTriDP_SLIC)
 
-set(OpenCV_DIR C:/Libraries/opencv/contrib_release/install)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Request the core components we use. If your OpenCV was built with contrib
-# and you prefer to use the installed ximgproc module instead of copying
-# the implementation here, add `ximgproc` to the COMPONENTS list.
-find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
+# Find OpenCV
+find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs ximgproc)
 
-include_directories(${OpenCV_INCLUDE_DIRS})
+# Include directories
+include_directories(
+    ${OpenCV_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 
-add_executable(${PROJECT_NAME} src/slic.cpp src/superduperpixel.cpp)
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+# Build segmentation library
+add_library(sdp_ltridp_segmentation STATIC
+    src/slic.cpp
+)
+
+target_link_libraries(sdp_ltridp_segmentation
+    ${OpenCV_LIBS}
+)
+
+# Tests subdirectory
+add_subdirectory(tests)

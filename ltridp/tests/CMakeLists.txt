@@ -30,3 +30,12 @@ target_link_libraries(test_with_mri_samples
     preprocessing 
     ${OpenCV_LIBS}
 )
+
+# Complete pipeline test program
+add_executable(test_complete_pipeline test_complete_pipeline.cpp)
+target_link_libraries(test_complete_pipeline
+    preprocessing
+    feature
+    ltridp_segmentation
+    ${OpenCV_LIBS}
+)
