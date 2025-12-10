@@ -46,6 +46,10 @@
 */.vscode
 .vscode
 
+# macOS system files
+.DS_Store
+**/.DS_Store
+
 # README files in ltridp (right now README are a bit scrappy for my own reference. will add later)
 ltridp/**/README.md
 
