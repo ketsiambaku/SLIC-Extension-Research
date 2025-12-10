@@ -108,7 +108,7 @@ bool processImage(const fs::path& input_path, const fs::path& output_dir) {
     
     std::cout << "\nStep 3: Superpixel Segmentation (SDP-LTriDP SLIC)...\n";
     
-    std::vector<int> region_sizes = {10, 20, 30};
+    std::vector<int> region_sizes = {5, 10, 20, 30};
     
     for (int region_size : region_sizes) {
         std::cout << "\n  Region size: " << region_size << " pixels\n";
@@ -159,7 +159,7 @@ bool processImage(const fs::path& input_path, const fs::path& output_dir) {
         // Step 4: Duperization
         std::cout << "    Duperizing with average...\n";
         float duperize_distance = 10.0f;  // Color distance threshold
-        slic.duperizeWithAverage(duperize_distance);
+        slic.duperizeWithAverage(duperize_distance, true);
         
         int num_superduperpixels = slic.getNumberOfSuperpixels();
         std::cout << "      After duperize: " << num_superduperpixels << " super-duper-pixels\n";

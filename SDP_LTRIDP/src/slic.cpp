@@ -368,6 +368,11 @@ void SDPLTriDPSLIC::updateCenters()
             m_kseeds_tex[k] = sigma_tex[k] / count;                      // ADDED: update texture center
         }
     }
+
+	// Final safeguard: ensure updated centers are not sitting directly on edges
+	cv::Mat post_update_edges;
+	detectEdges(post_update_edges);
+	perturbSeeds(post_update_edges);
 }
 
 float SDPLTriDPSLIC::calculateGrayThreshold() const            // ADDED: new function for threshold
@@ -523,7 +528,7 @@ void SDPLTriDPSLIC::enforceLabelConnectivity(int min_element_size)
  * Combine adjacent superpixels into super-duper-pixels if they're similar enough in color.
  * Uses average colors of superpixels to determine if they're similar enough in color.
  */
-void SDPLTriDPSLIC::duperizeWithAverage(const float max_distance, const bool use_duper_distance = false)
+void SDPLTriDPSLIC::duperizeWithAverage(const float max_distance, const bool use_duper_distance)
 {
 	// Graph of which superpixels are adjecent to each other
 	// First dimension is each superpixel
@@ -570,7 +575,7 @@ void SDPLTriDPSLIC::duperizeWithAverage(const float max_distance, const bool use
  * Combine adjacent superpixels into super-duper-pixels if they're similar enough in color.
  * Uses (normalized) color histograms of superpixels to determine if they're similar enough in color.
  */
-void SDPLTriDPSLIC::duperizeWithHistogram(const int num_buckets[], const float distance, const bool use_duper_distance = false)
+void SDPLTriDPSLIC::duperizeWithHistogram(const int num_buckets[], const float distance, const bool use_duper_distance)
 {
 	// Graph of which superpixels are adjecent to each other
 	// First dimension is each superpixel

@@ -33,6 +33,7 @@
 #include <vector>
 #include <set>
 #include <list>
+#include <cmath>
 
 namespace sdp_ltridp {
 
@@ -83,14 +84,60 @@ struct SuperDuperPixel {
     const std::set<int>& get_superpixels() const {
         return superpixels;
     }
+
+    const std::vector<float>& get_average() const {
+        return average_colors;
+    }
+
+    const std::vector<std::vector<float>>& get_histogram() const {
+        return color_histogram;
+    }
+
+    float distance_from(const std::vector<float>& colors) const {
+        if (average_colors.empty()) {
+            return 0.0f;
+        }
+
+        float dist = 0.0f;
+        for (size_t i = 0; i < average_colors.size() && i < colors.size(); ++i) {
+            dist += std::abs(average_colors[i] - colors[i]);
+        }
+        return dist;
+    }
+
+    float distance_from(const std::vector<std::vector<float>>& histogram) const {
+        if (color_histogram.empty()) {
+            return 0.0f;
+        }
+
+        float dist = 0.0f;
+        for (size_t ch = 0; ch < color_histogram.size() && ch < histogram.size(); ++ch) {
+            for (size_t bin = 0; bin < color_histogram[ch].size() && bin < histogram[ch].size(); ++bin) {
+                dist += std::abs(color_histogram[ch][bin] - histogram[ch][bin]);
+            }
+        }
+        return dist;
+    }
     
     SuperDuperPixel& operator+=(const SuperDuperPixel* other) {
         if (other) {
             superpixels.insert(other->superpixels.begin(), other->superpixels.end());
-            // Merge average colors
-            for (size_t i = 0; i < average_colors.size() && i < other->average_colors.size(); ++i) {
-                average_colors[i] = (average_colors[i] * population + other->average_colors[i] * other->population) / (population + other->population);
+            if (!average_colors.empty() && !other->average_colors.empty()) {
+                for (size_t i = 0; i < average_colors.size() && i < other->average_colors.size(); ++i) {
+                    average_colors[i] = (average_colors[i] * population + other->average_colors[i] * other->population) /
+                                        (population + other->population);
+                }
             }
+
+            if (!color_histogram.empty() && !other->color_histogram.empty()) {
+                for (size_t ch = 0; ch < color_histogram.size() && ch < other->color_histogram.size(); ++ch) {
+                    for (size_t bin = 0; bin < color_histogram[ch].size() && bin < other->color_histogram[ch].size(); ++bin) {
+                        color_histogram[ch][bin] = (color_histogram[ch][bin] * population + other->color_histogram[ch][bin] * other->population) /
+                                                   (population + other->population);
+                    }
+                }
+            }
+
             population += other->population;
         }
         return *this;
