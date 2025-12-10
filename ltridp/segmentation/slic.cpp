@@ -365,11 +365,6 @@ void LTriDPSuperpixelSLIC::updateCenters()
             m_kseeds_tex[k] = sigma_tex[k] / count;                      // ADDED: update texture center
         }
     }
-
-    	// Final safeguard: ensure updated centers are not sitting directly on edges
-	cv::Mat post_update_edges;
-	detectEdges(post_update_edges);
-	perturbSeeds(post_update_edges);
 }
 
 float LTriDPSuperpixelSLIC::calculateGrayThreshold() const            // ADDED: new function for threshold

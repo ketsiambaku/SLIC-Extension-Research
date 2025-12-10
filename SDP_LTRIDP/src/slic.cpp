@@ -232,28 +232,16 @@ void SDPLTriDPSLIC::performLTriDPSLIC(int num_iterations)
     cv::Mat distvec(m_height, m_width, CV_32F);
     
     // Spatial distance weight
-    // Standard SLIC: spatial_weight = (m / S)^2
-    const float compactness_ratio = m_ruler / static_cast<float>(m_region_size);
-    const float spatial_weight = compactness_ratio * compactness_ratio;
-    // Feature cues shrink after histogram reconstruction + gamma, so boost them by (m^2)/4
-    // to keep the combined (gray + texture) term on the same order as spatial distance.
-    const float feature_scale = 0.25f * m_ruler * m_ruler;
+    // Standard SLIC: xywt = (S/m)²
+    const float xywt = (static_cast<float>(m_region_size) / m_ruler) *
+                       (static_cast<float>(m_region_size) / m_ruler);
 
-    // Normalization factors keep gray/texture residuals comparable to spatial cost
-    constexpr float kVarianceEpsilon = 1e-6f;
-    constexpr float texture_weight = 0.6f;
-
-    // Use global variance instead of fixed 1/255 scaling so the metric adapts to
-    // contrast changes introduced by preprocessing (matches Wang et al.'s intent).
-    cv::Scalar gray_mean, gray_stddev;
-    cv::meanStdDev(m_image, gray_mean, gray_stddev);
-    const float gray_variance = static_cast<float>(gray_stddev[0]) * static_cast<float>(gray_stddev[0]);
-    const float inv_gray_variance = 1.0f / (gray_variance + kVarianceEpsilon);
-
-    cv::Scalar texture_mean, texture_stddev;
-    cv::meanStdDev(m_texture, texture_mean, texture_stddev);
-    const float texture_variance = static_cast<float>(texture_stddev[0]) * static_cast<float>(texture_stddev[0]);
-    const float inv_texture_variance = 1.0f / (texture_variance + kVarianceEpsilon);
+    // Normalization constants keep each distance term comparable
+    constexpr float gray_range = 255.0f;
+    constexpr float texture_range = 255.0f;
+    const float inv_gray_range_sq = 1.0f / (gray_range * gray_range);
+    const float inv_texture_range_sq = 1.0f / (texture_range * texture_range);
+    constexpr float texture_weight = 0.6f;  // balances texture vs. intensity
     
     // Main iteration loop
     for (int itr = 0; itr < num_iterations; itr++) {
@@ -284,22 +272,36 @@ void SDPLTriDPSLIC::performLTriDPSLIC(int num_iterations)
                     float pixel_gray = static_cast<float>(m_image.at<uchar>(y, x));
                     float pixel_tex = static_cast<float>(m_texture.at<uchar>(y, x));  // ADDED: texture pixel value
                     
-                    // Gray distance component (normalized by global variance)
-                    float gray_diff = pixel_gray - center_gray;
-                    float dc = gray_diff * gray_diff * inv_gray_variance;
+                    // Gray distance component (normalized)
+                    // Add normalization to distance measurement
+                    float dc = pixel_gray - center_gray;
+                    dc = (dc * dc) * inv_gray_range_sq;
                     
-                    // Texture distance component
-                    float texture_diff = pixel_tex - center_tex;
-                    float dt = texture_diff * texture_diff * inv_texture_variance;
+                    // Texture distance component (normalized)
+                    float dt = pixel_tex - center_tex;
+                    dt = (dt * dt) * inv_texture_range_sq;
                     
                     // Spatial distance component
                     float dx_diff = static_cast<float>(x) - center_x;
                     float dy_diff = static_cast<float>(y) - center_y;
                     float ds = dx_diff * dx_diff + dy_diff * dy_diff;
                     
-                    // Combined distance metric: follow Achanta-style weighting
-                    // where spatial term is scaled by (m / S)^2.
-                    float dist = feature_scale * (dc + texture_weight * dt) + spatial_weight * ds;
+                    // Combined distance metric from paper:
+                    // D = sqrt((dc/Nc)² + (dt/Nt)² + (ds/Ns)²)
+                    // 
+                    // Normalization constants:
+                    // - Nc = max gray difference = 255 (for 8-bit images)
+                    // - Nt = max texture difference = 255 (LTriDP is 0-255)
+                    // - Ns = S (superpixel size)
+                    //
+                    // Simplify: D = sqrt(dc/255² + dt/255² + ds/S²)
+                    //          = sqrt((dc + dt)/255² + ds/(S²))
+                    //
+                    // For computational efficiency, we use:
+                    // D = dc + texture_weight * dt + ds/xywt
+                    // where xywt = (S/m)² provides compactness control
+                    
+                    float dist = dc + texture_weight * dt + ds / xywt;
                     
                     // Assign to nearest cluster
                     if (dist < distvec.at<float>(y, x)) {
@@ -367,7 +369,7 @@ void SDPLTriDPSLIC::updateCenters()
         }
     }
 
-    	// Final safeguard: ensure updated centers are not sitting directly on edges
+	// Final safeguard: ensure updated centers are not sitting directly on edges
 	cv::Mat post_update_edges;
 	detectEdges(post_update_edges);
 	perturbSeeds(post_update_edges);
@@ -381,9 +383,7 @@ float SDPLTriDPSLIC::calculateGrayThreshold() const            // ADDED: new fun
     cv::Scalar mean, stddev;
     cv::meanStdDev(m_image, mean, stddev);
     
-    // Broaden the acceptance band slightly so interior pixels continue to
-    // influence cluster centers even after contrast-enhancing transforms.
-    return static_cast<float>(stddev[0]) * 1.5f;
+    return static_cast<float>(stddev[0]);
 }
 
 void SDPLTriDPSLIC::getLabels(cv::Mat& labels_out) const
@@ -1258,4 +1258,4 @@ void SDPLTriDPSLIC::assignSuperduperpixels(const std::vector<int>& superduperpix
 	}
 }
 
-} // namespace sdp_ltridp
+} // namespace ltridp
