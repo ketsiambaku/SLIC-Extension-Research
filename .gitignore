@@ -39,7 +39,10 @@
 
 # CMakeTools VSCode extension build files
 # Ignore subdirectory build folders but not root build/
-*/build/
+ltridp/build/
+SDP_LTRIDP/build/
+SLIC Demo/build/
+evaluation/build/
 !build/
 
 # VSCode settings
