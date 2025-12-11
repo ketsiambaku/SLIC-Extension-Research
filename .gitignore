@@ -43,7 +43,10 @@ ltridp/build/
 SDP_LTRIDP/build/
 SLIC Demo/build/
 evaluation/build/
-!build/
+*/build
+
+# Include the root build directory
+!/build/
 
 # VSCode settings
 */.vscode
