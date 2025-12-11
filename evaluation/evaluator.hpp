@@ -22,6 +22,18 @@
 class SuperpixelEvaluator {
 public:
     /**
+     * @brief Compute average superpixel compactness.
+     *
+     * For each superpixel, computes compactness = P^2 / (4*pi*A),
+     * where P = perimeter (boundary pixel count), A = area (pixel count).
+     * Returns the mean compactness over all superpixels.
+     * Lower is better (1 = perfect circle).
+     *
+     * @param superpixelLabels Superpixel label map (CV_32S)
+     * @return Average compactness (double)
+     */
+    static double computeAverageCompactness(const cv::Mat& superpixelLabels);
+    /**
      * @brief Compute under-segmentation error.
      *
      * Measures how much superpixels "bleed" across ground truth boundaries.
@@ -67,6 +79,32 @@ public:
         const cv::Mat& superpixelLabelImage,
         const cv::Mat& groundTruthLabelImage,
         int boundaryToleranceInPixels = 2);
+
+    /**
+     * @brief Compute edge alignment score for superpixel boundaries.
+     *
+     * Measures what fraction of superpixel boundaries fall on strong edges
+     * in the source image. Useful for MRI evaluation when ground truth
+     * segmentation is unavailable. Uses Canny edge detection as pseudo-ground truth.
+     *
+     * Formula: EA = (# superpixel boundary pixels on edges) / (total # superpixel boundary pixels)
+     *
+     * Preconditions:
+     * superpixelLabels must be CV_32S type
+     * intensityImage must be CV_8UC1 (grayscale)
+     * Both inputs must have same dimensions
+     * edgeToleranceInPixels must be non-negative
+     * 
+     * Parameters:
+     * @param superpixelLabels Predicted superpixel label map (CV_32S).
+     * @param intensityImage Source grayscale image used for edge detection (CV_8UC1).
+     * @param edgeToleranceInPixels Maximum distance for alignment matching (default 2).
+     * @return Edge alignment score in [0, 1]. Higher is better (1.0 = perfect alignment).
+     */
+    static double computeEdgeAlignmentScore(
+        const cv::Mat& superpixelLabels,
+        const cv::Mat& intensityImage,
+        int edgeToleranceInPixels = 2);
 
 private:
     /**

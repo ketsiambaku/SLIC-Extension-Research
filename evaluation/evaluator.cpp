@@ -9,6 +9,59 @@
 #include "evaluator.hpp"
 #include <opencv2/imgproc.hpp>
 #include <unordered_map>
+#include <unordered_set>
+#include <cmath>
+
+
+double SuperpixelEvaluator::computeAverageCompactness(const cv::Mat& superpixelLabels) {
+    CV_Assert(superpixelLabels.type() == CV_32S);
+    const int numRows = superpixelLabels.rows;
+    const int numCols = superpixelLabels.cols;
+
+    // Map: label -> area (pixel count)
+    std::unordered_map<int, int> areaMap;
+    // Map: label -> perimeter (boundary pixel count)
+    std::unordered_map<int, int> perimeterMap;
+
+    // Compute area for each label
+    for (int row = 0; row < numRows; ++row) {
+        const int* labelRowPtr = superpixelLabels.ptr<int>(row);
+        for (int col = 0; col < numCols; ++col) {
+            int label = labelRowPtr[col];
+            areaMap[label]++;
+        }
+    }
+
+    // Compute perimeter for each label using boundary mask
+    cv::Mat boundaryMask = computeLabelBoundaryMask(superpixelLabels);
+    for (int row = 0; row < numRows; ++row) {
+        const int* labelRowPtr = superpixelLabels.ptr<int>(row);
+        const uchar* boundaryRowPtr = boundaryMask.ptr<uchar>(row);
+        for (int col = 0; col < numCols; ++col) {
+            if (boundaryRowPtr[col] == 255) {
+                int label = labelRowPtr[col];
+                perimeterMap[label]++;
+            }
+        }
+    }
+
+    // Compute compactness for each superpixel
+    double sumCompactness = 0.0;
+    int count = 0;
+    for (const auto& entry : areaMap) {
+        int label = entry.first;
+        int area = entry.second;
+        int perimeter = perimeterMap[label];
+        if (area > 0 && perimeter > 0) {
+            double compactness = (perimeter * perimeter) / (4.0 * M_PI * area);
+            sumCompactness += compactness;
+            count++;
+        }
+    }
+    if (count == 0) return 0.0;
+    return sumCompactness / count;
+}
+
 
 double SuperpixelEvaluator::computeUnderSegmentationError(const cv::Mat& superpixelLabels, const cv::Mat& groundTruthLabels, double overlapFractionThreshold) {
     CV_Assert(superpixelLabels.size() == groundTruthLabels.size());
@@ -149,4 +202,52 @@ double SuperpixelEvaluator::computeBoundaryRecall(const cv::Mat& superpixelLabel
     }
 
     return matchedGtBoundaryPixelCount / totalGtBoundaryPixelCount;
+}
+
+double SuperpixelEvaluator::computeEdgeAlignmentScore(const cv::Mat& superpixelLabels, const cv::Mat& intensityImage, int edgeToleranceInPixels) {
+    CV_Assert(superpixelLabels.size() == intensityImage.size());
+    CV_Assert(superpixelLabels.type() == CV_32S);
+    CV_Assert(intensityImage.type() == CV_8UC1);
+    CV_Assert(edgeToleranceInPixels >= 0);
+
+    // Extract superpixel boundaries
+    cv::Mat superpixelBoundaryMask = computeLabelBoundaryMask(superpixelLabels);
+
+    // Detect edges in intensity image using Canny
+    cv::Mat edges;
+    cv::Canny(intensityImage, edges, 50, 150);
+
+    // Invert edge map and compute distance transform
+    cv::Mat nonEdgeMask;
+    cv::bitwise_not(edges, nonEdgeMask);
+    cv::Mat distanceToEdge;
+    cv::distanceTransform(nonEdgeMask, distanceToEdge, cv::DIST_L2, cv::DIST_MASK_3);
+
+    // Count superpixel boundary pixels that align with edges
+    double alignedBoundaryPixelCount = 0.0;
+    double totalBoundaryPixelCount = 0.0;
+    const int numRows = superpixelBoundaryMask.rows;
+    const int numCols = superpixelBoundaryMask.cols;
+
+    for (int row = 0; row < numRows; ++row) {
+        const uchar* boundaryRowPtr = superpixelBoundaryMask.ptr<uchar>(row);
+        const float* distanceRowPtr = distanceToEdge.ptr<float>(row);
+
+        for (int col = 0; col < numCols; ++col) {
+            if (boundaryRowPtr[col] == 0)
+                continue; // not a superpixel boundary pixel
+
+            totalBoundaryPixelCount += 1.0;
+
+            if (distanceRowPtr[col] <= static_cast<float>(edgeToleranceInPixels)) {
+                alignedBoundaryPixelCount += 1.0;
+            }
+        }
+    }
+
+    if (totalBoundaryPixelCount == 0.0) {
+        return 0.0; // no boundaries to evaluate
+    }
+
+    return alignedBoundaryPixelCount / totalBoundaryPixelCount;
 }
