@@ -45,9 +45,6 @@ SLIC Demo/build/
 evaluation/build/
 */build
 
-# Include the root build directory
-!/build/
-
 # VSCode settings
 */.vscode
 .vscode
