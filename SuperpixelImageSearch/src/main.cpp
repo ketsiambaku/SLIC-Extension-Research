@@ -20,15 +20,15 @@ namespace fs = std::filesystem;
 using json   = nlohmann::json;
 
 // PATH CONFIG
-const std::string DATA_ROOT = "C:/SuperpixelImageSearch/data";
+const std::string DATA_ROOT = "../../SuperpixelImageSearch/data";
 const std::string INDEX_DIR = DATA_ROOT + "/coco2017/images/train2017";
 const std::string QUERY_IMG = DATA_ROOT + "/coco2017/images/val2017/000000000139.jpg";
 const std::string TRAIN_ANN = DATA_ROOT + "/coco2017/annotations/annotations/instances_train2017.json";
 const std::string VAL_ANN   = DATA_ROOT + "/coco2017/annotations/annotations/instances_val2017.json";
 
-//EXPERIMENT CONFIG
-constexpr size_t MAX_IMAGES     = 10000;
-constexpr bool   USE_ALL_IMAGES = false;
+// EXPERIMENT CONFIG
+constexpr size_t MAX_IMAGES     = 2250;
+constexpr bool   USE_ALL_IMAGES = true;
 constexpr int    TOP_K          = 5;
 
 // four cell sizes to test for SUPERPIXEL_SPATIAL
@@ -54,7 +54,7 @@ constexpr int   SDSLIC_MIN_SIZE_PERCENT   = 4;
 constexpr int   SDSLIC_ITERATIONS         = 10;
 constexpr float SDSLIC_HIST_DISTANCE      = 2.0f;
 constexpr int   SDSLIC_HIST_BUCKETS[3]    = {8, 64, 64};
-constexpr int   CUSTOM_FIXED_REGIONS = 64;
+constexpr int   CUSTOM_FIXED_REGIONS      = 64;
 
 // BASIC TYPES
 
@@ -888,12 +888,13 @@ int main(int, char**) {
             });
         }
 
-        experiments.push_back({
-            FeatureType::SIFT,
-            DescriptorMode::CUSTOM,
-            0,
-            "CUSTOM_SDSLIC_SIFT"
-        });
+        // NOTE: CUSTOM_SDSLIC_SIFT moved to pipeline_demo.cpp
+        // experiments.push_back({
+        //     FeatureType::SIFT,
+        //     DescriptorMode::CUSTOM,
+        //     0,
+        //     "CUSTOM_SDSLIC_SIFT"
+        // });
 
         std::vector<ExperimentStats> allStats;
         allStats.reserve(experiments.size());

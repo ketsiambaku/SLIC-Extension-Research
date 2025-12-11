@@ -13,12 +13,37 @@ The ``main.cpp`` file in the ``SuperpixelImageSearch/src`` folder is the primary
 ## SuperpixelImageSearch
 By: Everett-Alan Hood
 
-TODO: Everett needs to write about his demo here
+This module implements the reverse image search system used in our project, including both the standalone SuperpixelImageSearch algorithm and the full integrated SD-SLIC pipeline demo.
 
-## HashTable
-By: Luke Erdy
+If you would like to see results on a larger dataset (10,000 images) without running the full experiment yourself, precomputed outputs are available in: ``SuperpixelImageSearch/output/``
 
-TODO: Luke needs to write about his demo here
+1. Downloading the Sample COCO Dataset (2500 Images)
+    Before running the programs, download the small COCO subset used for testing.
+    From the project root: 
+    ``cd SuperpixelImageSearch/scripts``
+    ``python download_coco.py``
+2. Running the Pipeline Demo
+    To see the full SD-SLIC pipeline (superpixels → merged regions → descriptors → indexing → retrieval), run:
+    ``cd build/Debug``
+    ``./pipeline_demo.exe``
+    This demo produces:
+    - SD-SLIC superpixel boundaries
+    - Region-level SIFT descriptors
+    - Top-K nearest matches
+    - Pipeline visualizations and CSV logs
+    
+    Outputs are written to: ``SuperpixelImageSearch/output/pipeline_demo/``
+
+3. Running the Main Reverse Image Search Program
+    To benchmark the actual SuperpixelImageSearch algorithm and compare descriptor types, run:
+    ``cd build/Debug``
+    ``./superpixel_ris.exe``
+    This program evaluates:
+    - Global SIFT / ORB descriptors
+    - Superpixel-spatial descriptors (multiple grid sizes)
+    - Custom SD-SLIC region descriptors
+
+    Results appear under: ```SuperpixelImageSearch/output/```
 
 ## ltridp
 By: Ketsia Mbaku
@@ -28,7 +53,13 @@ TODO: Ketsia needs to write about her demo here
 ## SDP_HashTable
 By: Luke Erdy
 
-TODO: Luke needs to write about this demo here
+``SDP_HashTable/src/HashTableDemo.cpp`` uses the class defined in ``SLICHashTable.hpp``  to segment images according to the modified SLIC algorithm (SDP), generate key-value pairs storing their superpixels in a hash map, and perform a sequence of queries which will return similar images from the present database based on similarity.
+Superpixel hash keys are generated based on average color value and spatial extent. Best matches are found via a voting system which counts collisions on a simulated hash of a query image's superpixels.
+To run this demo:
+1. Place the header and source files found in ``SDP_HashTable/src`` in your Visual Studio Code project ``src`` folder.
+2. Place the images found in ``SDP_HashTable/src/images`` in your main project folder (2 directories above ``build/Release``.)
+3. Compile and run the program.
+4. Optionally, you may add your own inputs and queries according to the naming scheme. The variables ``int input_count`` and ``int q_count`` must be changed to reflect the correct number of inputs and queries, respectively.
 
 ## SuperDuperPixels
 By: Chandler Calkins
