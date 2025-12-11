@@ -20,4 +20,5 @@ add_subdirectory(segmentation)
 
 # Enable testing (will be used if GTest is available in tests/)
 enable_testing()
+add_subdirectory(../evaluation ${CMAKE_BINARY_DIR}/evaluation_build)
 add_subdirectory(tests)

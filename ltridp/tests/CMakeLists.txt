@@ -37,5 +37,6 @@ target_link_libraries(test_complete_pipeline
     preprocessing
     feature
     ltridp_segmentation
+    superpixel_evaluator
     ${OpenCV_LIBS}
 )
