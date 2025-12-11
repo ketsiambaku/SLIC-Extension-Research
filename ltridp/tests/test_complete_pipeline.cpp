@@ -26,6 +26,7 @@
 #include "preprocessing.hpp"
 #include "feature_extraction.hpp"
 #include "slic.hpp"
+#include "../../evaluation/evaluator.hpp"
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -36,6 +37,15 @@
 #include <string>
 #include <vector>
 #include <cmath>
+
+struct ImageResult {
+    std::string imageName;
+    int regionSize;
+    double opencvEdgeScore;
+    double ltridpEdgeScore;
+    double opencvCompactness;
+    double ltridpCompactness;
+};
 
 namespace fs = std::filesystem;
 
@@ -88,7 +98,7 @@ cv::Mat createComparisonGrid(const cv::Mat& original, const cv::Mat& enhanced, c
     return grid;
 }
 
-bool processImage(const fs::path& input_path, const fs::path& output_dir) {
+bool processImage(const fs::path& input_path, const fs::path& output_dir, std::vector<ImageResult>& results) {
     std::cout << "\n" << std::string(80, '=') << "\n";
     std::cout << "Processing: " << input_path.filename() << "\n";
     std::cout << std::string(80, '=') << "\n";
@@ -137,6 +147,11 @@ bool processImage(const fs::path& input_path, const fs::path& output_dir) {
         
         int opencv_superpixels = opencv_slic->getNumberOfSuperpixels();
         std::cout << "    OpenCV SLIC superpixels: " << opencv_superpixels << "\n";
+        
+        // Compute edge alignment score for OpenCV SLIC
+        double opencv_edge_score = SuperpixelEvaluator::computeEdgeAlignmentScore(opencv_labels, enhanced, 2);
+        // Compute average compactness for OpenCV SLIC
+        double opencv_compactness = SuperpixelEvaluator::computeAverageCompactness(opencv_labels);
 
         // LTriDP SLIC on enhanced image with features
         const float compactness_ratio = 1.0f;  // keep m/S constant across region sizes
@@ -175,6 +190,24 @@ bool processImage(const fs::path& input_path, const fs::path& output_dir) {
         std::cout << "    Boundary pixels: " << boundary_pixels 
                   << " (" << std::fixed << std::setprecision(2) 
                   << boundary_percentage << "%)\n";
+        
+        // Compute edge alignment score for LTriDP SLIC
+        double ltridp_edge_score = SuperpixelEvaluator::computeEdgeAlignmentScore(labels, enhanced, 2);
+        // Compute average compactness for LTriDP SLIC
+        double ltridp_compactness = SuperpixelEvaluator::computeAverageCompactness(labels);
+        std::cout << "    Edge Alignment - OpenCV: " << std::fixed << std::setprecision(4) 
+              << opencv_edge_score << ", LTriDP: " << ltridp_edge_score << "\n";
+        std::cout << "    Compactness   - OpenCV: " << std::fixed << std::setprecision(4)
+              << opencv_compactness << ", LTriDP: " << ltridp_compactness << "\n";
+        // Store results for summary table
+        ImageResult result;
+        result.imageName = input_path.stem().string();
+        result.regionSize = region_size;
+        result.opencvEdgeScore = opencv_edge_score;
+        result.ltridpEdgeScore = ltridp_edge_score;
+        result.opencvCompactness = opencv_compactness;
+        result.ltridpCompactness = ltridp_compactness;
+        results.push_back(result);
         
         std::string base_name = input_path.stem().string();
         std::string size_suffix = "_S" + std::to_string(region_size);
@@ -235,9 +268,10 @@ int main(int argc, char* argv[]) {
     std::cout << "\nFound " << image_files.size() << " image(s) to process\n";
     int success_count = 0;
     int failure_count = 0;
+    std::vector<ImageResult> results;
     
     for (const auto& image_path : image_files) {
-        if (processImage(image_path, output_dir)) {
+        if (processImage(image_path, output_dir, results)) {
             success_count++;
         } else {
             failure_count++;
@@ -252,10 +286,57 @@ int main(int argc, char* argv[]) {
     if (failure_count > 0) {
         std::cout << "Failed: " << failure_count << " image(s)\n";
     }
+    
+    // Display edge alignment scores table
+    if (!results.empty()) {
+        std::cout << "\n" << std::string(80, '=') << "\n";
+        std::cout << "Edge Alignment & Compactness (Lower is More Compact)\n";
+        std::cout << std::string(120, '=') << "\n";
+        std::cout << std::left << std::setw(20) << "Image"
+                  << std::setw(12) << "Region Size"
+                  << std::setw(18) << "OpenCV SLIC (EA)"
+                  << std::setw(18) << "LTriDP SLIC (EA)"
+                  << std::setw(18) << "OpenCV SLIC (C)"
+                  << std::setw(18) << "LTriDP SLIC (C)"
+                  << "EA Improv."
+                  << "\n";
+        std::cout << std::string(120, '-') << "\n";
+        double total_opencv = 0.0, total_ltridp = 0.0;
+        double total_opencv_c = 0.0, total_ltridp_c = 0.0;
+        for (const auto& result : results) {
+            double improvement = result.ltridpEdgeScore - result.opencvEdgeScore;
+            std::cout << std::left << std::setw(20) << result.imageName
+                      << std::setw(12) << result.regionSize
+                      << std::fixed << std::setprecision(4)
+                      << std::setw(18) << result.opencvEdgeScore
+                      << std::setw(18) << result.ltridpEdgeScore
+                      << std::setw(18) << result.opencvCompactness
+                      << std::setw(18) << result.ltridpCompactness
+                      << (improvement >= 0 ? "+" : "") << improvement << "\n";
+            total_opencv += result.opencvEdgeScore;
+            total_ltridp += result.ltridpEdgeScore;
+            total_opencv_c += result.opencvCompactness;
+            total_ltridp_c += result.ltridpCompactness;
+        }
+        std::cout << std::string(120, '-') << "\n";
+        double avg_opencv = total_opencv / results.size();
+        double avg_ltridp = total_ltridp / results.size();
+        double avg_opencv_c = total_opencv_c / results.size();
+        double avg_ltridp_c = total_ltridp_c / results.size();
+        double avg_improvement = avg_ltridp - avg_opencv;
+        std::cout << std::left << std::setw(20) << "AVERAGE"
+                  << std::setw(12) << ""
+                  << std::fixed << std::setprecision(4)
+                  << std::setw(18) << avg_opencv
+                  << std::setw(18) << avg_ltridp
+                  << std::setw(18) << avg_opencv_c
+                  << std::setw(18) << avg_ltridp_c
+                  << (avg_improvement >= 0 ? "+" : "") << avg_improvement << "\n";
+        std::cout << std::string(120, '=') << "\n";
+    }
+    
     std::cout << "\nOutput files saved to: " << fs::absolute(output_dir) << "\n";
     std::cout << "\nGenerated files per image (for each region size S=10,20,30):\n";
-    std::cout << "  *_S{N}_boundaries.png    - LTriDP boundaries on enhanced image\n";
-    std::cout << "  *_S{N}_pipeline.png      - Pipeline comparison (includes OpenCV SLIC baseline)\n";
     std::cout << "\n";
     
     return (failure_count == 0) ? 0 : 1;

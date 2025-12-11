@@ -11,6 +11,7 @@ target_link_libraries(test_complete_pipeline_v2
     sdp_ltridp_segmentation
     ${LTRIDP_BUILD_DIR}/preprocessing/libpreprocessing.a
     ${LTRIDP_BUILD_DIR}/feature/libfeature.a
+    ${LTRIDP_BUILD_DIR}/evaluation_build/libsuperpixel_evaluator.a
     ${OpenCV_LIBS}
 )
 
