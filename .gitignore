@@ -39,10 +39,6 @@
 
 # CMakeTools VSCode extension build files
 # Ignore subdirectory build folders but not root build/
-ltridp/build/
-SDP_LTRIDP/build/
-SLIC Demo/build/
-evaluation/build/
 */build
 
 # VSCode settings
@@ -52,9 +48,6 @@ evaluation/build/
 # macOS system files
 .DS_Store
 **/.DS_Store
-
-# README files in ltridp (right now README are a bit scrappy for my own reference. will add later)
-ltridp/**/README.md
 
 # Project directories
 opencv_slic/
