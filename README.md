@@ -41,7 +41,7 @@ Color histograms have to be normalized between 0 and 1 for this to work with the
 If this is not done, superpixels that are similar in color but different in size would have large distances between them and not be considered similar.
 
 To run this demo, follow these steps:
-1. Place an image in the folder that's either of the format .jpg, .png, or .gif.
+1. Place an image in the folder that's either of the format .jpg, .png, or .gif and uses RGB color space.
 2. Rename that image to either ``inputs.jpg``, ``input.png``, or ``inpug.gif`` depending on the file format.
 3. If you are running this on Visual Studio instead of another IDE, comment out line `72` in ``src/demo.cpp`` so the program can file your input image. The line of code you need to comment out is: ``chdir("../../");``.
 4. Run the program.

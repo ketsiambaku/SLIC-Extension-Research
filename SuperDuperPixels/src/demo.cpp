@@ -60,7 +60,7 @@ Mat show_superpixels(const Ptr<SuperpixelSLIC>& slic, const Mat& input_image, co
 //
 // Preconditions:
 //
-// There is a valid .jpg .png or .gif file in the project folder and the `imread()` call that creates the `input_image` object reads from that file.
+// There is a valid RGB .jpg .png or .gif file in the project folder and the `imread()` call that creates the `input_image` object reads from that file.
 //
 // Postconditions:
 //
