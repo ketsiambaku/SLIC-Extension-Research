@@ -45,14 +45,14 @@ If you would like to see results on a larger dataset (10,000 images) without run
 
     Results appear under: ```SuperpixelImageSearch/output/```
 
-## ltridp
+## LTRIDP x SDP
 By: Ketsia Mbaku
 
 ### Prerequisites
 - The project must be built from the root using CMake so that all dependencies are available.
 
 ### Build Instructions
-**Important:** You must build the `ltridp` libraries first, as SDP_LTRIDP depends on them.
+**Important:** You must build the `ltridp` libraries first, as `SDP_LTRIDP` depends on them.
 
 From the project root, run:
 
@@ -68,7 +68,7 @@ cmake --build SDP_LTRIDP/build --target test_complete_pipeline_v2
 
 ### Running the Test
 
-To see the full LTriDP pipeline combined with SuperDuperPixel, run:
+To see the full LTriDP pipeline combined with SuperDuperPixel in action, run:
 
 ```sh
 ./SDP_LTRIDP/build/tests/test_complete_pipeline_v2 ltridp/data/input output_sdp_ltridp
@@ -82,10 +82,10 @@ For each input image and region size, the test will generate:
 - Superpixel boundary images
 - Duperized superpixel boundary images
 - Pipeline comparison grids
-- Console output with edge alignment and compactness metrics
+- Console output edge scores and compactness metrics
 
 ### Notes
-- the input directory exists and contains 10 images before running the test. You can add more images from WBA if you wish.
+- the input directory exists under `ltridp/data/input` and contains 10 .png images before running the test. You can add more images from WBA if you wish.
 - The output directory will be created if it does not exist.
 
 ## SDP_HashTable
